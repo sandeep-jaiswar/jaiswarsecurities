@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -30,30 +31,26 @@ func InitLogger() {
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 
-	// Log to console and file
+	// Create console logger
 	consoleCore := zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), zapcore.AddSync(os.Stdout), zap.DebugLevel)
+
+	// Try to initialize file logging
 	fileWriter, err := getLogFileWriter("logs/app.log")
 	if err != nil {
-		fmt.Printf("failed to initialize file logging: %v\n", err)
-		core := zapcore.NewCore(
-			zapcore.NewConsoleEncoder(encoderConfig),
-			zapcore.AddSync(os.Stdout),
-			zap.DebugLevel,
-		)
-		log = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
+		fmt.Printf("Failed to initialize file logging: %v\n", err)
+		// Fall back to only console logging
+		log = zap.New(consoleCore, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
 		return
 	}
+
+	// Create file logger (JSON format)
 	fileCore := zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), fileWriter, zap.InfoLevel)
 
-	// Combine cores
+	// Combine console and file cores
 	core := zapcore.NewTee(consoleCore, fileCore)
-	log = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
 
-	defer func() {
-		if err := log.Sync(); err != nil {
-			fmt.Println("Error while syncing log", err)
-		}
-	}()
+	// Create logger
+	log = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
 }
 
 // customTimeEncoder formats timestamps
@@ -75,10 +72,15 @@ func getLogFileWriter(filename string) (zapcore.WriteSyncer, error) {
 	return zapcore.AddSync(file), nil
 }
 
-// GetLogger returns the global logger instance
+// NewLogger is the provider function that initializes and provides the logger
 func NewLogger() *zap.Logger {
 	loggerOnce.Do(func() {
+		fmt.Println("Initializing logger")
 		InitLogger()
 	})
 	return log
 }
+
+var Module = fx.Module("logger",
+	fx.Provide(NewLogger), // Change from Invoke to Provide
+)
