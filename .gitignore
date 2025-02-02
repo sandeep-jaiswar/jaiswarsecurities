@@ -1,1 +1,9 @@
+# Coverage directory used by tools like istanbul
 coverage
+
+# Environment
+*.env
+
+# Vscode
+.vscode
+
