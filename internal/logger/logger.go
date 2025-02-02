@@ -74,10 +74,10 @@ func getLogFileWriter(filename string) (zapcore.WriteSyncer, error) {
 
 // NewLogger is the provider function that initializes and provides the logger
 func NewLogger() *zap.Logger {
-	if log == nil {
+	loggerOnce.Do(func() {
 		fmt.Println("Initializing logger")
 		InitLogger()
-	}
+	})
 	return log
 }
 

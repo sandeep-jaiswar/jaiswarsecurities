@@ -13,7 +13,9 @@ func GreeterHandler(logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Handling Greet Request")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message": "Hello from Greeter!"}`))
+		if _, err := w.Write([]byte(`{"message": "Hello from Greeter!"}`)); err != nil {
+			logger.Error("failed to write response", zap.Error(err))
+		}
 	}
 }
 
