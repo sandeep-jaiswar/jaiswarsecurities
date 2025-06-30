@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
+
+    <include file="changelog/001-initial-schema.sql" relativeToChangelogFile="true"/>
+    <include file="changelog/002-add-indexes.sql" relativeToChangelogFile="true"/>
+    <include file="changelog/003-add-backtesting-tables.sql" relativeToChangelogFile="true"/>
+    <include file="changelog/004-add-screening-tables.sql" relativeToChangelogFile="true"/>
+
+</databaseChangeLog>

@@ -1,0 +1,28 @@
+{
+  "name": "stock-backtesting",
+  "version": "1.0.0",
+  "description": "Stock backtesting service",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "kafkajs": "^2.2.4",
+    "winston": "^3.11.0",
+    "dotenv": "^16.3.1",
+    "joi": "^17.11.0",
+    "mathjs": "^11.11.0",
+    "technicalindicators": "^3.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0"
+  },
+  "keywords": ["stock", "backtesting", "trading", "strategy"],
+  "author": "Stock Screening System",
+  "license": "MIT"
+}
