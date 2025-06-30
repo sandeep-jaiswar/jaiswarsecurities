@@ -1,0 +1,253 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444444;
+}
+
+/* Terminal-style selection */
+::selection {
+  background: #ff6600;
+  color: #000000;
+}
+
+/* Custom styles for terminal look */
+.terminal-border {
+  border: 1px solid #333333;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.terminal-glow {
+  box-shadow: 0 0 20px rgba(255, 102, 0, 0.3);
+}
+
+.market-up {
+  color: #00ff00;
+}
+
+.market-down {
+  color: #ff0000;
+}
+
+.market-neutral {
+  color: #ffffff;
+}
+
+/* Blinking cursor effect */
+.cursor-blink::after {
+  content: '|';
+  animation: blink 1s infinite;
+}
+
+/* Grid layout for terminal panels */
+.terminal-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr 350px;
+  grid-template-rows: 60px 1fr 200px;
+  grid-template-areas:
+    "header header header"
+    "sidebar main rightpanel"
+    "footer footer footer";
+  height: 100vh;
+  gap: 1px;
+  background: #333333;
+}
+
+.terminal-header {
+  grid-area: header;
+  background: #1a1a1a;
+}
+
+.terminal-sidebar {
+  grid-area: sidebar;
+  background: #1a1a1a;
+  overflow-y: auto;
+}
+
+.terminal-main {
+  grid-area: main;
+  background: #000000;
+  overflow: hidden;
+}
+
+.terminal-rightpanel {
+  grid-area: rightpanel;
+  background: #1a1a1a;
+  overflow-y: auto;
+}
+
+.terminal-footer {
+  grid-area: footer;
+  background: #1a1a1a;
+}
+
+/* Chart container styles */
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+}
+
+/* Data table styles */
+.data-table {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.data-table th {
+  background: #333333;
+  color: #ffffff;
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #666666;
+}
+
+.data-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #333333;
+}
+
+.data-table tr:hover {
+  background: #2a2a2a;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  border: 2px solid #333333;
+  border-top: 2px solid #ff6600;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Status indicators */
+.status-online {
+  color: #00ff00;
+}
+
+.status-offline {
+  color: #ff0000;
+}
+
+.status-warning {
+  color: #ffff00;
+}
+
+/* Panel resize handle */
+.resize-handle {
+  background: #333333;
+  cursor: col-resize;
+  width: 4px;
+  transition: background-color 0.2s;
+}
+
+.resize-handle:hover {
+  background: #ff6600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .terminal-grid {
+    grid-template-columns: 250px 1fr;
+    grid-template-areas:
+      "header header"
+      "sidebar main"
+      "footer footer";
+  }
+  
+  .terminal-rightpanel {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .terminal-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "main"
+      "footer";
+  }
+  
+  .terminal-sidebar {
+    display: none;
+  }
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Terminal text effects */
+.terminal-text {
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.terminal-accent {
+  color: #ff6600;
+  font-weight: bold;
+}
+
+/* Market data styling */
+.price-positive {
+  color: #00ff00;
+}
+
+.price-negative {
+  color: #ff0000;
+}
+
+.price-unchanged {
+  color: #ffffff;
+}
+
+.volume-high {
+  color: #00ffff;
+}
+
+.volume-normal {
+  color: #ffffff;
+}
+
+.volume-low {
+  color: #888888;
+}

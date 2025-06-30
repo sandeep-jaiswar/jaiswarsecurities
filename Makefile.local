@@ -1,24 +1,25 @@
-.PHONY: help setup start stop restart logs clean health test api-test
+.PHONY: help setup start stop restart logs clean health test api-test build-client
 
 # Default target
 help:
 	@echo "🚀 Stock Screening System - Local Development"
 	@echo ""
 	@echo "Available commands:"
-	@echo "  setup     - Initial setup and start all services"
-	@echo "  start     - Start all services"
-	@echo "  stop      - Stop all services"
-	@echo "  restart   - Restart all services"
-	@echo "  logs      - Show logs from all services"
+	@echo "  setup       - Initial setup and start all services"
+	@echo "  start       - Start all services"
+	@echo "  stop        - Stop all services"
+	@echo "  restart     - Restart all services"
+	@echo "  logs        - Show logs from all services"
 	@echo "  logs-[service] - Show logs from specific service"
-	@echo "  clean     - Clean up Docker resources"
-	@echo "  health    - Check service health"
-	@echo "  test      - Run API tests"
-	@echo "  api-test  - Test API endpoints"
+	@echo "  clean       - Clean up Docker resources"
+	@echo "  health      - Check service health"
+	@echo "  test        - Run API tests"
+	@echo "  api-test    - Test API endpoints"
+	@echo "  build-client - Build Next.js client"
 
 # Initial setup
 setup:
-	@echo "🚀 Setting up Stock Screening System..."
+	@echo "🚀 Setting up Stock Screening System with Next.js Client..."
 	chmod +x scripts/setup-local.sh
 	chmod +x scripts/stop-local.sh
 	chmod +x scripts/logs-local.sh
@@ -30,6 +31,7 @@ start:
 	docker-compose -f docker-compose.local.yml up -d
 	@echo "✅ Services started!"
 	@echo "📋 Access points:"
+	@echo "  Next.js Client: http://localhost:3001"
 	@echo "  API Gateway: http://localhost:3000"
 	@echo "  n8n: http://localhost:5678 (admin/admin123)"
 	@echo "  API Docs: http://localhost:3000/api-docs"
@@ -66,6 +68,9 @@ logs-data:
 logs-backtest:
 	docker-compose -f docker-compose.local.yml logs -f backtesting
 
+logs-client:
+	docker-compose -f docker-compose.local.yml logs -f client
+
 logs-n8n:
 	docker-compose -f docker-compose.local.yml logs -f n8n
 
@@ -90,9 +95,11 @@ health:
 	@echo "API Gateway:"
 	@curl -s http://localhost:3000/health | jq . || echo "❌ API Gateway not ready"
 	@echo "Data Ingestion:"
-	@curl -s http://localhost:3001/health | jq . || echo "❌ Data Ingestion not ready"
+	@curl -s http://localhost:3002/health | jq . || echo "❌ Data Ingestion not ready"
 	@echo "Backtesting:"
-	@curl -s http://localhost:3002/health | jq . || echo "❌ Backtesting not ready"
+	@curl -s http://localhost:3003/health | jq . || echo "❌ Backtesting not ready"
+	@echo "Next.js Client:"
+	@curl -s http://localhost:3001 > /dev/null && echo "✅ Next.js Client ready" || echo "❌ Next.js Client not ready"
 
 # Run tests
 test:
@@ -115,6 +122,11 @@ api-test:
 	@echo ""
 	@echo "Market overview:"
 	curl -s http://localhost:3000/api/analytics/market-overview | jq .
+
+# Build Next.js client
+build-client:
+	@echo "🔨 Building Next.js client..."
+	cd client && npm run build
 
 # Build images
 build:
@@ -145,3 +157,14 @@ shell-data:
 
 shell-backtest:
 	docker-compose -f docker-compose.local.yml exec backtesting sh
+
+shell-client:
+	docker-compose -f docker-compose.local.yml exec client sh
+
+# Development mode for client
+dev-client:
+	cd client && npm run dev
+
+# Install client dependencies
+install-client:
+	cd client && npm install
