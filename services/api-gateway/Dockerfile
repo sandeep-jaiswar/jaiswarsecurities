@@ -3,8 +3,11 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Install dependencies
-COPY package*.json ./
-RUN npm install --only=production
+COPY package.json ./
+# Generate package-lock.json if it doesn't exist
+RUN if [ ! -f package-lock.json ]; then npm install --package-lock-only; fi
+COPY package-lock.json* ./
+RUN npm ci --only=production
 
 # Copy application code
 COPY . .
