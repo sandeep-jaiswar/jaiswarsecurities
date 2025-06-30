@@ -6,7 +6,7 @@ const winston = require('winston');
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.json(),
-  transports: [new winston.transports.Console()]
+  transports: [new winston.transports.Console()],
 });
 
 // Initialize ClickHouse connection
@@ -44,11 +44,11 @@ router.get('/market-overview', async (req, res) => {
         LEFT JOIN ohlcv_daily o ON s.id = o.security_id
         LEFT JOIN trading_statistics ts ON s.id = ts.security_id AND o.trade_date = ts.trade_date
         WHERE o.trade_date = (SELECT MAX(trade_date) FROM ohlcv_daily)
-      `
+      `,
     });
-    
+
     const stats = await statsResult.json();
-    
+
     // Get sector performance
     const sectorResult = await clickhouse.query({
       query: `
@@ -64,16 +64,16 @@ router.get('/market-overview', async (req, res) => {
           AND s.is_active = 1
         GROUP BY sec.name
         ORDER BY avg_change_percent DESC
-      `
+      `,
     });
-    
+
     const sectors = await sectorResult.json();
-    
+
     res.json({
       market_stats: stats.data[0],
       sector_performance: sectors.data,
       market_status: 'OPEN',
-      last_updated: new Date().toISOString()
+      last_updated: new Date().toISOString(),
     });
   } catch (error) {
     logger.error('Error fetching market overview:', error);
@@ -102,10 +102,10 @@ router.get('/market-overview', async (req, res) => {
 router.get('/heatmap', async (req, res) => {
   try {
     const { groupBy = 'sector' } = req.query;
-    
+
     let groupField = '';
     let joinClause = '';
-    
+
     switch (groupBy) {
       case 'sector':
         groupField = 'sec.name as group_name';
@@ -128,7 +128,7 @@ router.get('/heatmap', async (req, res) => {
         joinClause = '';
         break;
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -146,13 +146,13 @@ router.get('/heatmap', async (req, res) => {
           AND s.is_active = 1
         GROUP BY group_name
         ORDER BY total_market_cap DESC
-      `
+      `,
     });
-    
+
     const data = await result.json();
     res.json({
       groupBy,
-      data: data.data
+      data: data.data,
     });
   } catch (error) {
     logger.error('Error fetching heatmap data:', error);
@@ -186,13 +186,13 @@ router.get('/heatmap', async (req, res) => {
 router.get('/correlation', async (req, res) => {
   try {
     const { symbols, period = 30 } = req.query;
-    
+
     if (!symbols) {
       return res.status(400).json({ error: 'Symbols parameter is required' });
     }
-    
-    const symbolList = symbols.split(',').map(s => s.trim().toUpperCase());
-    
+
+    const symbolList = symbols.split(',').map((s) => s.trim().toUpperCase());
+
     // Get price data for correlation calculation
     const result = await clickhouse.query({
       query: `
@@ -207,29 +207,29 @@ router.get('/correlation', async (req, res) => {
           AND o.trade_date >= (SELECT MAX(trade_date) - INTERVAL {period:UInt32} DAY FROM ohlcv_daily)
         ORDER BY s.symbol, o.trade_date
       `,
-      query_params: { 
+      query_params: {
         symbols: symbolList,
-        period: parseInt(period)
-      }
+        period: parseInt(period),
+      },
     });
-    
+
     const data = await result.json();
-    
+
     // Calculate correlation matrix (simplified)
     const correlationMatrix = {};
-    symbolList.forEach(symbol1 => {
+    symbolList.forEach((symbol1) => {
       correlationMatrix[symbol1] = {};
-      symbolList.forEach(symbol2 => {
+      symbolList.forEach((symbol2) => {
         // Simplified correlation calculation (would need proper statistical calculation)
         correlationMatrix[symbol1][symbol2] = symbol1 === symbol2 ? 1.0 : Math.random() * 2 - 1;
       });
     });
-    
+
     res.json({
       symbols: symbolList,
       period: parseInt(period),
       correlation_matrix: correlationMatrix,
-      data: data.data
+      data: data.data,
     });
   } catch (error) {
     logger.error('Error calculating correlation:', error);
@@ -262,15 +262,15 @@ router.get('/correlation', async (req, res) => {
 router.get('/volatility', async (req, res) => {
   try {
     const { symbol, period = 30 } = req.query;
-    
+
     let whereClause = '';
     const queryParams = { period: parseInt(period) };
-    
+
     if (symbol) {
       whereClause = 'AND s.symbol = {symbol:String}';
       queryParams.symbol = symbol.toUpperCase();
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -290,13 +290,13 @@ router.get('/volatility', async (req, res) => {
         ORDER BY ti.volatility_30d DESC
         LIMIT 50
       `,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
     res.json({
       period: parseInt(period),
-      data: data.data
+      data: data.data,
     });
   } catch (error) {
     logger.error('Error fetching volatility data:', error);
@@ -338,9 +338,9 @@ router.get('/momentum', async (req, res) => {
           AND ti.rsi_14 IS NOT NULL
         ORDER BY ABS(ti.rsi_14 - 50) DESC
         LIMIT 50
-      `
+      `,
     });
-    
+
     const data = await result.json();
     res.json(data.data);
   } catch (error) {
@@ -368,15 +368,15 @@ router.get('/momentum', async (req, res) => {
 router.get('/sentiment', async (req, res) => {
   try {
     const { symbol } = req.query;
-    
+
     let whereClause = '';
     const queryParams = {};
-    
+
     if (symbol) {
       whereClause = 'AND s.symbol = {symbol:String}';
       queryParams.symbol = symbol.toUpperCase();
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -397,9 +397,9 @@ router.get('/sentiment', async (req, res) => {
         ORDER BY news_count DESC
         LIMIT 50
       `,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
     res.json(data.data);
   } catch (error) {

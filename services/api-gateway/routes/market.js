@@ -7,7 +7,7 @@ const winston = require('winston');
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.json(),
-  transports: [new winston.transports.Console()]
+  transports: [new winston.transports.Console()],
 });
 
 // Initialize ClickHouse connection
@@ -59,7 +59,7 @@ const clickhouse = createClient({
 router.get('/symbols', async (req, res) => {
   try {
     const { search, sector, exchange, limit = 100, offset = 0 } = req.query;
-    
+
     let query = `
       SELECT 
         s.id,
@@ -79,41 +79,41 @@ router.get('/symbols', async (req, res) => {
       LEFT JOIN exchanges e ON s.exchange_id = e.id
       WHERE s.is_active = 1
     `;
-    
+
     const queryParams = {};
-    
+
     if (search) {
       query += ` AND (s.symbol ILIKE {search:String} OR s.name ILIKE {search:String} OR c.name ILIKE {search:String})`;
       queryParams.search = `%${search}%`;
     }
-    
+
     if (sector) {
       query += ` AND sec.code = {sector:String}`;
       queryParams.sector = sector;
     }
-    
+
     if (exchange) {
       query += ` AND e.code = {exchange:String}`;
       queryParams.exchange = exchange;
     }
-    
+
     query += ` ORDER BY s.symbol LIMIT {limit:UInt32} OFFSET {offset:UInt32}`;
     queryParams.limit = parseInt(limit);
     queryParams.offset = parseInt(offset);
-    
+
     const result = await clickhouse.query({
       query,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
     res.json({
       data: data.data,
       pagination: {
         limit: parseInt(limit),
         offset: parseInt(offset),
-        total: data.data.length
-      }
+        total: data.data.length,
+      },
     });
   } catch (error) {
     logger.error('Error fetching symbols:', error);
@@ -141,7 +141,7 @@ router.get('/symbols', async (req, res) => {
 router.get('/symbols/:symbol/quote', async (req, res) => {
   try {
     const { symbol } = req.params;
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -166,14 +166,14 @@ router.get('/symbols/:symbol/quote', async (req, res) => {
         ORDER BY o.trade_date DESC
         LIMIT 1
       `,
-      query_params: { symbol: symbol.toUpperCase() }
+      query_params: { symbol: symbol.toUpperCase() },
     });
-    
+
     const data = await result.json();
     if (data.data.length === 0) {
       return res.status(404).json({ error: 'Symbol not found' });
     }
-    
+
     res.json(data.data[0]);
   } catch (error) {
     logger.error('Error fetching quote:', error);
@@ -216,22 +216,38 @@ router.get('/symbols/:symbol/chart', async (req, res) => {
   try {
     const { symbol } = req.params;
     const { period = '1M', interval = '1d' } = req.query;
-    
+
     // Calculate date range based on period
     const endDate = new Date();
     const startDate = new Date();
-    
+
     switch (period) {
-      case '1D': startDate.setDate(endDate.getDate() - 1); break;
-      case '5D': startDate.setDate(endDate.getDate() - 5); break;
-      case '1M': startDate.setMonth(endDate.getMonth() - 1); break;
-      case '3M': startDate.setMonth(endDate.getMonth() - 3); break;
-      case '6M': startDate.setMonth(endDate.getMonth() - 6); break;
-      case '1Y': startDate.setFullYear(endDate.getFullYear() - 1); break;
-      case '2Y': startDate.setFullYear(endDate.getFullYear() - 2); break;
-      case '5Y': startDate.setFullYear(endDate.getFullYear() - 5); break;
+      case '1D':
+        startDate.setDate(endDate.getDate() - 1);
+        break;
+      case '5D':
+        startDate.setDate(endDate.getDate() - 5);
+        break;
+      case '1M':
+        startDate.setMonth(endDate.getMonth() - 1);
+        break;
+      case '3M':
+        startDate.setMonth(endDate.getMonth() - 3);
+        break;
+      case '6M':
+        startDate.setMonth(endDate.getMonth() - 6);
+        break;
+      case '1Y':
+        startDate.setFullYear(endDate.getFullYear() - 1);
+        break;
+      case '2Y':
+        startDate.setFullYear(endDate.getFullYear() - 2);
+        break;
+      case '5Y':
+        startDate.setFullYear(endDate.getFullYear() - 5);
+        break;
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -260,19 +276,19 @@ router.get('/symbols/:symbol/chart', async (req, res) => {
           AND o.trade_date <= {endDate:Date}
         ORDER BY o.trade_date ASC
       `,
-      query_params: { 
+      query_params: {
         symbol: symbol.toUpperCase(),
         startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0]
-      }
+        endDate: endDate.toISOString().split('T')[0],
+      },
     });
-    
+
     const data = await result.json();
     res.json({
       symbol: symbol.toUpperCase(),
       period,
       interval,
-      data: data.data
+      data: data.data,
     });
   } catch (error) {
     logger.error('Error fetching chart data:', error);
@@ -307,7 +323,7 @@ router.get('/symbols/:symbol/chart', async (req, res) => {
 router.get('/movers', async (req, res) => {
   try {
     const { type = 'gainers', limit = 20 } = req.query;
-    
+
     let orderBy = '';
     switch (type) {
       case 'gainers':
@@ -320,7 +336,7 @@ router.get('/movers', async (req, res) => {
         orderBy = 'o.volume DESC';
         break;
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -340,13 +356,13 @@ router.get('/movers', async (req, res) => {
         ORDER BY ${orderBy}
         LIMIT {limit:UInt32}
       `,
-      query_params: { limit: parseInt(limit) }
+      query_params: { limit: parseInt(limit) },
     });
-    
+
     const data = await result.json();
     res.json({
       type,
-      data: data.data
+      data: data.data,
     });
   } catch (error) {
     logger.error('Error fetching movers:', error);
@@ -384,9 +400,9 @@ router.get('/sectors', async (req, res) => {
           AND s.is_active = 1
         GROUP BY sec.name, sec.code
         ORDER BY avg_change_percent DESC
-      `
+      `,
     });
-    
+
     const data = await result.json();
     res.json(data.data);
   } catch (error) {
@@ -415,15 +431,15 @@ router.get('/indices', async (req, res) => {
         price: 450.25,
         change: 2.15,
         changePercent: 0.48,
-        volume: 45000000
+        volume: 45000000,
       },
       {
         symbol: 'QQQ',
         name: 'Invesco QQQ Trust',
-        price: 385.50,
-        change: 3.20,
+        price: 385.5,
+        change: 3.2,
         changePercent: 0.84,
-        volume: 32000000
+        volume: 32000000,
       },
       {
         symbol: 'DIA',
@@ -431,18 +447,18 @@ router.get('/indices', async (req, res) => {
         price: 340.75,
         change: 1.85,
         changePercent: 0.55,
-        volume: 15000000
+        volume: 15000000,
       },
       {
         symbol: 'IWM',
         name: 'iShares Russell 2000 ETF',
-        price: 195.30,
+        price: 195.3,
         change: -0.85,
         changePercent: -0.43,
-        volume: 28000000
-      }
+        volume: 28000000,
+      },
     ];
-    
+
     res.json(indices);
   } catch (error) {
     logger.error('Error fetching indices:', error);
@@ -470,7 +486,7 @@ router.get('/indices', async (req, res) => {
 router.get('/symbols/:symbol/fundamentals', async (req, res) => {
   try {
     const { symbol } = req.params;
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -503,14 +519,14 @@ router.get('/symbols/:symbol/fundamentals', async (req, res) => {
         ORDER BY fp.fiscal_year DESC
         LIMIT 1
       `,
-      query_params: { symbol: symbol.toUpperCase() }
+      query_params: { symbol: symbol.toUpperCase() },
     });
-    
+
     const data = await result.json();
     if (data.data.length === 0) {
       return res.status(404).json({ error: 'Symbol not found' });
     }
-    
+
     res.json(data.data[0]);
   } catch (error) {
     logger.error('Error fetching fundamentals:', error);

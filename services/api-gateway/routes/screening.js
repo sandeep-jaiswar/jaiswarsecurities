@@ -6,7 +6,7 @@ const winston = require('winston');
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.json(),
-  transports: [new winston.transports.Console()]
+  transports: [new winston.transports.Console()],
 });
 
 // Initialize ClickHouse connection
@@ -42,9 +42,9 @@ router.get('/screens', async (req, res) => {
         FROM screens
         WHERE is_active = 1
         ORDER BY name
-      `
+      `,
     });
-    
+
     const data = await result.json();
     res.json(data.data);
   } catch (error) {
@@ -73,31 +73,31 @@ router.get('/screens', async (req, res) => {
 router.post('/screens/:id/run', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Get screen configuration
     const screenResult = await clickhouse.query({
       query: 'SELECT * FROM screens WHERE id = {id:UInt32}',
-      query_params: { id: parseInt(id) }
+      query_params: { id: parseInt(id) },
     });
-    
+
     const screens = await screenResult.json();
     if (screens.data.length === 0) {
       return res.status(404).json({ error: 'Screen not found' });
     }
-    
+
     const screen = screens.data[0];
     const criteria = JSON.parse(screen.criteria);
-    
+
     // Build dynamic query based on criteria
     const { query, queryParams } = buildScreeningQuery(criteria);
-    
+
     const result = await clickhouse.query({
       query,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
-    
+
     // Store results
     const scanDate = new Date().toISOString().split('T')[0];
     const results = data.data.map((row, index) => ({
@@ -107,21 +107,21 @@ router.post('/screens/:id/run', async (req, res) => {
       scan_date: scanDate,
       score: row.score || 0,
       criteria_met: JSON.stringify(row),
-      market_data: JSON.stringify(row)
+      market_data: JSON.stringify(row),
     }));
-    
+
     if (results.length > 0) {
       await clickhouse.insert({
         table: 'screen_results',
-        values: results
+        values: results,
       });
     }
-    
+
     res.json({
       screen_name: screen.name,
       scan_date: scanDate,
       results_count: data.data.length,
-      results: data.data
+      results: data.data,
     });
   } catch (error) {
     logger.error('Error running screen:', error);
@@ -155,20 +155,20 @@ router.post('/screens/:id/run', async (req, res) => {
 router.post('/custom', async (req, res) => {
   try {
     const { criteria, limit = 50 } = req.body;
-    
+
     const { query, queryParams } = buildScreeningQuery(criteria, limit);
-    
+
     const result = await clickhouse.query({
       query,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
-    
+
     res.json({
       criteria,
       results_count: data.data.length,
-      results: data.data
+      results: data.data,
     });
   } catch (error) {
     logger.error('Error running custom screen:', error);
@@ -193,88 +193,88 @@ router.get('/criteria', async (req, res) => {
         name: 'Price',
         type: 'number',
         operators: ['>', '<', '>=', '<=', '='],
-        description: 'Current stock price'
+        description: 'Current stock price',
       },
       market_cap: {
         name: 'Market Cap',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: 'Market capitalization'
+        description: 'Market capitalization',
       },
       volume: {
         name: 'Volume',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: 'Trading volume'
+        description: 'Trading volume',
       },
       volume_ratio: {
         name: 'Volume Ratio',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: 'Volume vs average volume'
+        description: 'Volume vs average volume',
       },
       price_change_percent: {
         name: 'Price Change %',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: 'Daily price change percentage'
+        description: 'Daily price change percentage',
       },
       rsi_14: {
         name: 'RSI (14)',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: 'Relative Strength Index'
+        description: 'Relative Strength Index',
       },
       macd: {
         name: 'MACD',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: 'MACD indicator'
+        description: 'MACD indicator',
       },
       sma_20: {
         name: 'SMA 20',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: '20-day Simple Moving Average'
+        description: '20-day Simple Moving Average',
       },
       sma_50: {
         name: 'SMA 50',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: '50-day Simple Moving Average'
+        description: '50-day Simple Moving Average',
       },
       price_to_earnings: {
         name: 'P/E Ratio',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: 'Price to Earnings ratio'
+        description: 'Price to Earnings ratio',
       },
       price_to_book: {
         name: 'P/B Ratio',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: 'Price to Book ratio'
+        description: 'Price to Book ratio',
       },
       debt_to_equity: {
         name: 'Debt/Equity',
         type: 'number',
         operators: ['>', '<', '>=', '<='],
-        description: 'Debt to Equity ratio'
+        description: 'Debt to Equity ratio',
       },
       sector: {
         name: 'Sector',
         type: 'string',
         operators: ['=', '!='],
-        description: 'Company sector'
+        description: 'Company sector',
       },
       exchange: {
         name: 'Exchange',
         type: 'string',
         operators: ['=', '!='],
-        description: 'Stock exchange'
-      }
+        description: 'Stock exchange',
+      },
     };
-    
+
     res.json(criteria);
   } catch (error) {
     logger.error('Error fetching criteria:', error);
@@ -316,10 +316,10 @@ function buildScreeningQuery(criteria, limit = 50) {
     WHERE o.trade_date = (SELECT MAX(trade_date) FROM ohlcv_daily)
       AND s.is_active = 1
   `;
-  
+
   const queryParams = { limit: parseInt(limit) };
   let paramCounter = 0;
-  
+
   // Add criteria filters
   Object.entries(criteria).forEach(([field, condition]) => {
     if (condition.min !== undefined) {
@@ -327,13 +327,13 @@ function buildScreeningQuery(criteria, limit = 50) {
       query += ` AND ${getFieldMapping(field)} >= {${paramName}:Float64}`;
       queryParams[paramName] = parseFloat(condition.min);
     }
-    
+
     if (condition.max !== undefined) {
       const paramName = `param_${paramCounter++}`;
       query += ` AND ${getFieldMapping(field)} <= {${paramName}:Float64}`;
       queryParams[paramName] = parseFloat(condition.max);
     }
-    
+
     if (condition.equals !== undefined) {
       const paramName = `param_${paramCounter++}`;
       if (typeof condition.equals === 'string') {
@@ -345,9 +345,9 @@ function buildScreeningQuery(criteria, limit = 50) {
       }
     }
   });
-  
+
   query += ` ORDER BY o.volume DESC LIMIT {limit:UInt32}`;
-  
+
   return { query, queryParams };
 }
 
@@ -367,9 +367,9 @@ function getFieldMapping(field) {
     price_to_book: 'fr.price_to_book',
     debt_to_equity: 'fr.debt_to_equity',
     sector: 'sec.name',
-    exchange: 'e.name'
+    exchange: 'e.name',
   };
-  
+
   return mappings[field] || field;
 }
 

@@ -6,7 +6,7 @@ const winston = require('winston');
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.json(),
-  transports: [new winston.transports.Console()]
+  transports: [new winston.transports.Console()],
 });
 
 // Initialize ClickHouse connection
@@ -53,25 +53,25 @@ const clickhouse = createClient({
 router.get('/news', async (req, res) => {
   try {
     const { symbol, category, sentiment, limit = 50 } = req.query;
-    
+
     let whereClause = 'WHERE na.published_at >= today() - INTERVAL 7 DAY';
     const queryParams = { limit: parseInt(limit) };
-    
+
     if (symbol) {
       whereClause += ' AND s.symbol = {symbol:String}';
       queryParams.symbol = symbol.toUpperCase();
     }
-    
+
     if (category) {
       whereClause += ' AND nc.code = {category:String}';
       queryParams.category = category;
     }
-    
+
     if (sentiment) {
       whereClause += ' AND ns.sentiment_label = {sentiment:String}';
       queryParams.sentiment = sentiment;
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -99,9 +99,9 @@ router.get('/news', async (req, res) => {
         ORDER BY na.published_at DESC
         LIMIT {limit:UInt32}
       `,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
     res.json(data.data);
   } catch (error) {
@@ -137,10 +137,10 @@ router.get('/news', async (req, res) => {
 router.get('/earnings', async (req, res) => {
   try {
     const { date, period = 'week' } = req.query;
-    
+
     let dateFilter = '';
     const queryParams = {};
-    
+
     if (date) {
       dateFilter = 'AND ce.event_date = {date:Date}';
       queryParams.date = date;
@@ -157,7 +157,7 @@ router.get('/earnings', async (req, res) => {
           break;
       }
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -184,14 +184,14 @@ router.get('/earnings', async (req, res) => {
           ${dateFilter}
         ORDER BY ce.event_date ASC, s.symbol
       `,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
     res.json({
       period,
       date,
-      earnings: data.data
+      earnings: data.data,
     });
   } catch (error) {
     logger.error('Error fetching earnings calendar:', error);
@@ -219,7 +219,7 @@ router.get('/earnings', async (req, res) => {
 router.get('/estimates/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -243,13 +243,13 @@ router.get('/estimates/:symbol', async (req, res) => {
           AND ae.estimate_date >= today() - INTERVAL 90 DAY
         ORDER BY ae.fiscal_year DESC, ae.fiscal_quarter DESC, ae.estimate_type
       `,
-      query_params: { symbol: symbol.toUpperCase() }
+      query_params: { symbol: symbol.toUpperCase() },
     });
-    
+
     const data = await result.json();
     res.json({
       symbol: symbol.toUpperCase(),
-      estimates: data.data
+      estimates: data.data,
     });
   } catch (error) {
     logger.error('Error fetching analyst estimates:', error);
@@ -282,15 +282,15 @@ router.get('/estimates/:symbol', async (req, res) => {
 router.get('/insider-trading', async (req, res) => {
   try {
     const { symbol, days = 30 } = req.query;
-    
+
     let whereClause = `WHERE it.transaction_date >= today() - INTERVAL {days:UInt32} DAY`;
     const queryParams = { days: parseInt(days) };
-    
+
     if (symbol) {
       whereClause += ' AND s.symbol = {symbol:String}';
       queryParams.symbol = symbol.toUpperCase();
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -313,13 +313,13 @@ router.get('/insider-trading', async (req, res) => {
         ORDER BY it.transaction_date DESC, it.total_value DESC
         LIMIT 100
       `,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
     res.json({
       period_days: parseInt(days),
-      transactions: data.data
+      transactions: data.data,
     });
   } catch (error) {
     logger.error('Error fetching insider trading:', error);
@@ -347,7 +347,7 @@ router.get('/insider-trading', async (req, res) => {
 router.get('/institutional-holdings/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -369,13 +369,13 @@ router.get('/institutional-holdings/:symbol', async (req, res) => {
         ORDER BY or.ownership_percentage DESC
         LIMIT 50
       `,
-      query_params: { symbol: symbol.toUpperCase() }
+      query_params: { symbol: symbol.toUpperCase() },
     });
-    
+
     const data = await result.json();
     res.json({
       symbol: symbol.toUpperCase(),
-      holdings: data.data
+      holdings: data.data,
     });
   } catch (error) {
     logger.error('Error fetching institutional holdings:', error);
@@ -413,20 +413,20 @@ router.get('/institutional-holdings/:symbol', async (req, res) => {
 router.get('/events', async (req, res) => {
   try {
     const { symbol, type, days = 30 } = req.query;
-    
+
     let whereClause = `WHERE ce.event_date BETWEEN today() AND today() + INTERVAL {days:UInt32} DAY`;
     const queryParams = { days: parseInt(days) };
-    
+
     if (symbol) {
       whereClause += ' AND s.symbol = {symbol:String}';
       queryParams.symbol = symbol.toUpperCase();
     }
-    
+
     if (type) {
       whereClause += ' AND et.code = {type:String}';
       queryParams.type = type;
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -447,13 +447,13 @@ router.get('/events', async (req, res) => {
         ORDER BY ce.event_date ASC
         LIMIT 100
       `,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
     res.json({
       period_days: parseInt(days),
-      events: data.data
+      events: data.data,
     });
   } catch (error) {
     logger.error('Error fetching corporate events:', error);

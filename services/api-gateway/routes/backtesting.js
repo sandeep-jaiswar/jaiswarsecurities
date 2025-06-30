@@ -6,7 +6,7 @@ const winston = require('winston');
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.json(),
-  transports: [new winston.transports.Console()]
+  transports: [new winston.transports.Console()],
 });
 
 // Initialize ClickHouse connection
@@ -42,9 +42,9 @@ router.get('/strategies', async (req, res) => {
         FROM strategies
         WHERE is_active = 1
         ORDER BY name
-      `
+      `,
     });
-    
+
     const data = await result.json();
     res.json(data.data);
   } catch (error) {
@@ -78,20 +78,20 @@ router.get('/strategies', async (req, res) => {
 router.get('/backtests', async (req, res) => {
   try {
     const { strategy_id, status } = req.query;
-    
+
     let whereClause = 'WHERE 1=1';
     const queryParams = {};
-    
+
     if (strategy_id) {
       whereClause += ' AND b.strategy_id = {strategyId:UInt32}';
       queryParams.strategyId = parseInt(strategy_id);
     }
-    
+
     if (status) {
       whereClause += ' AND b.status = {status:String}';
       queryParams.status = status;
     }
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -116,9 +116,9 @@ router.get('/backtests', async (req, res) => {
         ORDER BY b.created_at DESC
         LIMIT 100
       `,
-      query_params: queryParams
+      query_params: queryParams,
     });
-    
+
     const data = await result.json();
     res.json(data.data);
   } catch (error) {
@@ -162,32 +162,27 @@ router.get('/backtests', async (req, res) => {
  */
 router.post('/backtests', async (req, res) => {
   try {
-    const { 
-      strategy_id, 
-      name, 
-      start_date, 
-      end_date, 
-      initial_capital, 
-      symbols = [] 
-    } = req.body;
-    
+    const { strategy_id, name, start_date, end_date, initial_capital, symbols = [] } = req.body;
+
     const backtestId = Date.now();
-    
+
     await clickhouse.insert({
       table: 'backtests',
-      values: [{
-        id: backtestId,
-        strategy_id: strategy_id || null,
-        name,
-        start_date,
-        end_date,
-        initial_capital,
-        commission: 0.001,
-        slippage: 0.001,
-        status: 'pending'
-      }]
+      values: [
+        {
+          id: backtestId,
+          strategy_id: strategy_id || null,
+          name,
+          start_date,
+          end_date,
+          initial_capital,
+          commission: 0.001,
+          slippage: 0.001,
+          status: 'pending',
+        },
+      ],
     });
-    
+
     // In a real implementation, this would trigger the backtesting service
     // For now, we'll simulate immediate completion with mock results
     setTimeout(async () => {
@@ -212,19 +207,19 @@ router.post('/backtests', async (req, res) => {
             sharpeRatio: 1.2 + Math.random() * 0.8,
             winRate: 55 + Math.random() * 20,
             totalTrades: Math.floor(20 + Math.random() * 50),
-            id: backtestId
-          }
+            id: backtestId,
+          },
         });
       } catch (error) {
         logger.error('Error updating backtest results:', error);
       }
     }, 5000);
-    
+
     res.status(201).json({
       id: backtestId,
       name,
       status: 'pending',
-      message: 'Backtest started successfully'
+      message: 'Backtest started successfully',
     });
   } catch (error) {
     logger.error('Error starting backtest:', error);
@@ -252,7 +247,7 @@ router.post('/backtests', async (req, res) => {
 router.get('/backtests/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -264,14 +259,14 @@ router.get('/backtests/:id', async (req, res) => {
         LEFT JOIN strategies s ON b.strategy_id = s.id
         WHERE b.id = {id:UInt32}
       `,
-      query_params: { id: parseInt(id) }
+      query_params: { id: parseInt(id) },
     });
-    
+
     const data = await result.json();
     if (data.data.length === 0) {
       return res.status(404).json({ error: 'Backtest not found' });
     }
-    
+
     res.json(data.data[0]);
   } catch (error) {
     logger.error('Error fetching backtest details:', error);
@@ -299,7 +294,7 @@ router.get('/backtests/:id', async (req, res) => {
 router.get('/backtests/:id/trades', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -319,9 +314,9 @@ router.get('/backtests/:id/trades', async (req, res) => {
         WHERE bt.backtest_id = {backtestId:UInt32}
         ORDER BY bt.entry_date DESC
       `,
-      query_params: { backtestId: parseInt(id) }
+      query_params: { backtestId: parseInt(id) },
     });
-    
+
     const data = await result.json();
     res.json(data.data);
   } catch (error) {
@@ -350,7 +345,7 @@ router.get('/backtests/:id/trades', async (req, res) => {
 router.get('/backtests/:id/equity-curve', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const result = await clickhouse.query({
       query: `
         SELECT 
@@ -365,9 +360,9 @@ router.get('/backtests/:id/equity-curve', async (req, res) => {
         WHERE backtest_id = {backtestId:UInt32}
         ORDER BY trade_date ASC
       `,
-      query_params: { backtestId: parseInt(id) }
+      query_params: { backtestId: parseInt(id) },
     });
-    
+
     const data = await result.json();
     res.json(data.data);
   } catch (error) {
@@ -403,25 +398,27 @@ router.post('/strategies', async (req, res) => {
   try {
     const { name, description, parameters } = req.body;
     const strategyId = Date.now();
-    
+
     await clickhouse.insert({
       table: 'strategies',
-      values: [{
-        id: strategyId,
-        name,
-        description: description || '',
-        parameters: JSON.stringify(parameters || {}),
-        created_by: 'system',
-        is_active: 1
-      }]
+      values: [
+        {
+          id: strategyId,
+          name,
+          description: description || '',
+          parameters: JSON.stringify(parameters || {}),
+          created_by: 'system',
+          is_active: 1,
+        },
+      ],
     });
-    
+
     res.status(201).json({
       id: strategyId,
       name,
       description,
       parameters,
-      message: 'Strategy created successfully'
+      message: 'Strategy created successfully',
     });
   } catch (error) {
     logger.error('Error creating strategy:', error);
