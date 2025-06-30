@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Run lint-staged
+npx lint-staged
+
+# Check for secrets
+echo "🔐 Checking for secrets..."
+if command -v trufflehog &> /dev/null; then
+    trufflehog git file://. --since-commit HEAD~1 --only-verified --fail
+fi
+
+echo "✅ Pre-commit checks passed!"

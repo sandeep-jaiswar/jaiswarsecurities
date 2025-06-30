@@ -15,7 +15,14 @@ const http = require('http');
 require('dotenv').config();
 
 // Import route modules
+const marketRoutes = require('./routes/market');
+const analyticsRoutes = require('./routes/analytics');
+const researchRoutes = require('./routes/research');
+const portfolioRoutes = require('./routes/portfolio');
+const screeningRoutes = require('./routes/screening');
+const backtestingRoutes = require('./routes/backtesting');
 const tradingRoutes = require('./routes/trading');
+const economicRoutes = require('./routes/economic');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -28,8 +35,8 @@ const logger = winston.createLogger({
   transports: [
     new winston.transports.Console(),
     new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' })
-  ]
+    new winston.transports.File({ filename: 'logs/combined.log' }),
+  ],
 });
 
 // Initialize ClickHouse connection
@@ -48,13 +55,13 @@ const clickhouse = createClient({
 let redis;
 try {
   redis = Redis.createClient({
-    url: process.env.REDIS_URL
+    url: process.env.REDIS_URL,
   });
-  
+
   redis.on('error', (err) => {
     logger.error('Redis connection error:', err);
   });
-  
+
   redis.on('connect', () => {
     logger.info('Connected to Redis');
   });
@@ -71,16 +78,21 @@ const wss = new WebSocket.Server({ server });
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3001', 'http://localhost:5678'],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+      'http://localhost:3001',
+      'http://localhost:5678',
+    ],
+    credentials: true,
+  })
+);
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // limit each IP to 1000 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  message: 'Too many requests from this IP, please try again later.',
 });
 app.use(limiter);
 
@@ -95,7 +107,8 @@ const swaggerOptions = {
     info: {
       title: 'Bloomberg-style Stock Terminal API',
       version: '2.0.0',
-      description: 'Comprehensive API for stock screening, analytics, and trading with ClickHouse backend',
+      description:
+        'Comprehensive API for stock screening, analytics, and trading with ClickHouse backend',
     },
     servers: [
       {
@@ -139,7 +152,7 @@ const authenticateToken = (req, res, next) => {
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Bloomberg-style Stock Terminal API with ClickHouse',
     version: '2.0.0',
     database: 'ClickHouse',
@@ -153,8 +166,9 @@ app.get('/', (req, res) => {
       research: '/api/research',
       trading: '/api/trading',
       screening: '/api/screening',
-      backtesting: '/api/backtesting'
-    }
+      backtesting: '/api/backtesting',
+      economic: '/api/economic',
+    },
   });
 });
 
@@ -163,7 +177,7 @@ app.get('/health', async (req, res) => {
   try {
     // Check ClickHouse connection
     await clickhouse.query({ query: 'SELECT 1' });
-    
+
     // Check Redis connection (optional)
     let redisStatus = 'disconnected';
     try {
@@ -174,27 +188,34 @@ app.get('/health', async (req, res) => {
     } catch (redisError) {
       logger.warn('Redis health check failed:', redisError.message);
     }
-    
-    res.json({ 
-      status: 'healthy', 
+
+    res.json({
+      status: 'healthy',
       timestamp: new Date().toISOString(),
       services: {
         clickhouse: 'connected',
-        redis: redisStatus
-      }
+        redis: redisStatus,
+      },
     });
   } catch (error) {
     logger.error('Health check failed:', error);
-    res.status(503).json({ 
-      status: 'unhealthy', 
+    res.status(503).json({
+      status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      error: error.message 
+      error: error.message,
     });
   }
 });
 
 // Mount route modules
+app.use('/api/market', marketRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/research', researchRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/screening', screeningRoutes);
+app.use('/api/backtesting', backtestingRoutes);
 app.use('/api/trading', tradingRoutes);
+app.use('/api/economic', economicRoutes);
 
 // Authentication endpoints
 app.post('/api/auth/register', async (req, res) => {
@@ -204,7 +225,7 @@ app.post('/api/auth/register', async (req, res) => {
       email: Joi.string().email().required(),
       password: Joi.string().min(6).required(),
       firstName: Joi.string().optional(),
-      lastName: Joi.string().optional()
+      lastName: Joi.string().optional(),
     });
 
     const { error, value } = schema.validate(req.body);
@@ -217,10 +238,11 @@ app.post('/api/auth/register', async (req, res) => {
     // Check if user exists
     const existingUser = await clickhouse.query({
       query: 'SELECT id FROM users WHERE username = {username:String} OR email = {email:String}',
-      query_params: { username, email }
+      query_params: { username, email },
     });
 
-    if (existingUser.rows > 0) {
+    const userData = await existingUser.json();
+    if (userData.data.length > 0) {
       return res.status(409).json({ error: 'Username or email already exists' });
     }
 
@@ -232,23 +254,24 @@ app.post('/api/auth/register', async (req, res) => {
     const userId = Date.now(); // Simple ID generation
     await clickhouse.insert({
       table: 'users',
-      values: [{
-        id: userId,
-        username,
-        email,
-        password_hash: passwordHash,
-        first_name: firstName || '',
-        last_name: lastName || '',
-        is_active: 1,
-        is_verified: 0
-      }]
+      values: [
+        {
+          id: userId,
+          username,
+          email,
+          password_hash: passwordHash,
+          first_name: firstName || '',
+          last_name: lastName || '',
+          is_active: 1,
+          is_verified: 0,
+        },
+      ],
     });
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'User registered successfully',
-      userId 
+      userId,
     });
-
   } catch (error) {
     logger.error('Registration error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -259,7 +282,7 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const schema = Joi.object({
       username: Joi.string().required(),
-      password: Joi.string().required()
+      password: Joi.string().required(),
     });
 
     const { error, value } = schema.validate(req.body);
@@ -271,8 +294,9 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Get user
     const result = await clickhouse.query({
-      query: 'SELECT id, username, email, password_hash, is_active FROM users WHERE username = {username:String} OR email = {username:String}',
-      query_params: { username }
+      query:
+        'SELECT id, username, email, password_hash, is_active FROM users WHERE username = {username:String} OR email = {username:String}',
+      query_params: { username },
     });
 
     const users = await result.json();
@@ -293,10 +317,10 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
-        userId: user.id, 
+      {
+        userId: user.id,
         username: user.username,
-        email: user.email 
+        email: user.email,
       },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
@@ -308,167 +332,11 @@ app.post('/api/auth/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
-      }
+        email: user.email,
+      },
     });
-
   } catch (error) {
     logger.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Market Data endpoints
-app.get('/api/market/symbols', async (req, res) => {
-  try {
-    const { search, sector, exchange, limit = 100, offset = 0 } = req.query;
-    
-    let query = `
-      SELECT s.id, s.symbol, s.name, c.name as company_name, s.is_active
-      FROM securities s
-      LEFT JOIN companies c ON s.company_id = c.id
-      WHERE s.is_active = 1
-    `;
-    
-    const queryParams = {};
-    
-    if (search) {
-      query += ` AND (s.symbol ILIKE {search:String} OR s.name ILIKE {search:String})`;
-      queryParams.search = `%${search}%`;
-    }
-    
-    if (sector) {
-      query += ` AND c.sector_id = {sector:UInt32}`;
-      queryParams.sector = parseInt(sector);
-    }
-    
-    query += ` ORDER BY s.symbol LIMIT {limit:UInt32} OFFSET {offset:UInt32}`;
-    queryParams.limit = parseInt(limit);
-    queryParams.offset = parseInt(offset);
-    
-    const result = await clickhouse.query({
-      query,
-      query_params: queryParams
-    });
-    
-    const data = await result.json();
-    res.json(data.data);
-  } catch (error) {
-    logger.error('Error fetching symbols:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/market/symbols/:symbol/quote', async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    
-    // Check cache first
-    const cacheKey = `quote:${symbol}`;
-    let cachedData = null;
-    
-    try {
-      if (redis && redis.isOpen) {
-        cachedData = await redis.get(cacheKey);
-      }
-    } catch (redisError) {
-      logger.warn('Redis cache check failed:', redisError.message);
-    }
-    
-    if (cachedData) {
-      return res.json(JSON.parse(cachedData));
-    }
-    
-    const result = await clickhouse.query({
-      query: `
-        SELECT 
-          s.symbol,
-          s.name,
-          o.open_price,
-          o.high_price,
-          o.low_price,
-          o.close_price,
-          o.volume,
-          o.trade_date,
-          (o.close_price - LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date)) as price_change,
-          ((o.close_price - LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date)) / LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date)) * 100 as price_change_percent
-        FROM securities s
-        JOIN ohlcv_daily o ON s.id = o.security_id
-        WHERE s.symbol = {symbol:String}
-        ORDER BY o.trade_date DESC
-        LIMIT 1
-      `,
-      query_params: { symbol: symbol.toUpperCase() }
-    });
-    
-    const data = await result.json();
-    if (data.data.length === 0) {
-      return res.status(404).json({ error: 'Symbol not found' });
-    }
-    
-    const quote = data.data[0];
-    
-    // Cache for 30 seconds
-    try {
-      if (redis && redis.isOpen) {
-        await redis.setEx(cacheKey, 30, JSON.stringify(quote));
-      }
-    } catch (redisError) {
-      logger.warn('Redis cache set failed:', redisError.message);
-    }
-    
-    res.json(quote);
-  } catch (error) {
-    logger.error('Error fetching quote:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Analytics endpoints
-app.get('/api/analytics/market-overview', async (req, res) => {
-  try {
-    const cacheKey = 'market-overview';
-    let cachedData = null;
-    
-    try {
-      if (redis && redis.isOpen) {
-        cachedData = await redis.get(cacheKey);
-      }
-    } catch (redisError) {
-      logger.warn('Redis cache check failed:', redisError.message);
-    }
-    
-    if (cachedData) {
-      return res.json(JSON.parse(cachedData));
-    }
-    
-    // Mock market overview data
-    const overview = {
-      total_symbols: 5000,
-      active_symbols: 4850,
-      records_today: 4850,
-      total_volume: 2500000000,
-      market_status: 'OPEN',
-      major_indices: {
-        SPY: { price: 450.25, change: 1.25, changePercent: 0.28 },
-        QQQ: { price: 385.50, change: 2.15, changePercent: 0.56 },
-        DIA: { price: 340.75, change: 0.85, changePercent: 0.25 }
-      },
-      last_updated: new Date().toISOString()
-    };
-    
-    // Cache for 10 minutes
-    try {
-      if (redis && redis.isOpen) {
-        await redis.setEx(cacheKey, 600, JSON.stringify(overview));
-      }
-    } catch (redisError) {
-      logger.warn('Redis cache set failed:', redisError.message);
-    }
-    
-    res.json(overview);
-  } catch (error) {
-    logger.error('Error fetching market overview:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -476,36 +344,40 @@ app.get('/api/analytics/market-overview', async (req, res) => {
 // WebSocket handling
 wss.on('connection', (ws) => {
   logger.info('New WebSocket connection established');
-  
+
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
-      
+
       switch (data.type) {
         case 'subscribe':
           // Handle subscription to real-time data
           ws.symbol = data.symbol;
-          ws.send(JSON.stringify({
-            type: 'subscribed',
-            symbol: data.symbol,
-            message: `Subscribed to ${data.symbol}`
-          }));
+          ws.send(
+            JSON.stringify({
+              type: 'subscribed',
+              symbol: data.symbol,
+              message: `Subscribed to ${data.symbol}`,
+            })
+          );
           break;
-          
+
         case 'unsubscribe':
           // Handle unsubscription
           ws.symbol = null;
-          ws.send(JSON.stringify({
-            type: 'unsubscribed',
-            message: 'Unsubscribed from all symbols'
-          }));
+          ws.send(
+            JSON.stringify({
+              type: 'unsubscribed',
+              message: 'Unsubscribed from all symbols',
+            })
+          );
           break;
       }
     } catch (error) {
       logger.error('WebSocket message error:', error);
     }
   });
-  
+
   ws.on('close', () => {
     logger.info('WebSocket connection closed');
   });
@@ -534,11 +406,11 @@ async function initialize() {
         logger.warn('Failed to connect to Redis (continuing without cache):', redisError.message);
       }
     }
-    
+
     // Test ClickHouse connection
     await clickhouse.query({ query: 'SELECT 1' });
     logger.info('Connected to ClickHouse');
-    
+
     // Start server
     const port = process.env.API_PORT || 3000;
     server.listen(port, () => {
@@ -546,7 +418,6 @@ async function initialize() {
       logger.info(`API Documentation available at http://localhost:${port}/api-docs`);
       logger.info(`WebSocket server running on ws://localhost:${port}`);
     });
-    
   } catch (error) {
     logger.error('Failed to initialize service:', error);
     process.exit(1);
