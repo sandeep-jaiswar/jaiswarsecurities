@@ -1,81 +1,113 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: stock_postgres
-    restart: always
+  # ClickHouse Database - High-performance columnar database
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8-alpine
+    container_name: stock_clickhouse
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d
+      - clickhouse_data:/var/lib/clickhouse
+      - ./database/clickhouse/init:/docker-entrypoint-initdb.d:ro
+      - ./database/clickhouse/config:/etc/clickhouse-server/config.d:ro
     ports:
-      - "5432:5432"
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native interface
     networks:
       - stock_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
 
-  # Liquibase for Database Migrations
-  liquibase:
-    image: liquibase/liquibase:4.24
-    container_name: stock_liquibase
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      LIQUIBASE_COMMAND_URL: ${LIQUIBASE_COMMAND_URL}
-      LIQUIBASE_COMMAND_USERNAME: ${LIQUIBASE_COMMAND_USERNAME}
-      LIQUIBASE_COMMAND_PASSWORD: ${LIQUIBASE_COMMAND_PASSWORD}
-      LIQUIBASE_COMMAND_CHANGELOG_FILE: ${LIQUIBASE_COMMAND_CHANGELOG_FILE}
+  # Redis for Caching and Session Storage
+  redis:
+    image: redis:7-alpine
+    container_name: stock_redis
+    restart: unless-stopped
     volumes:
-      - ./liquibase:/liquibase/changelog
+      - redis_data:/data
+    ports:
+      - "6379:6379"
     networks:
       - stock_network
-    command: ["liquibase", "update"]
+    command: >
+      redis-server 
+      --appendonly yes 
+      --maxmemory 512mb 
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   # Zookeeper for Kafka
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: stock_zookeeper
-    restart: always
+    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
       ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_MAX_CLIENT_CNXNS: 60
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
     networks:
       - stock_network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   # Kafka Message Broker
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: stock_kafka
-    restart: always
+    restart: unless-stopped
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     environment:
-      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
-      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
-      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
-      KAFKA_LISTENERS: ${KAFKA_LISTENERS}
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_CREATE_TOPICS_ENABLE}
-      KAFKA_DELETE_TOPIC_ENABLE: ${KAFKA_DELETE_TOPIC_ENABLE}
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms512M"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
     volumes:
       - kafka_data:/var/lib/kafka/data
     ports:
       - "9092:9092"
+      - "9093:9093"
     networks:
       - stock_network
     healthcheck:
@@ -84,60 +116,19 @@ services:
       timeout: 10s
       retries: 3
 
-  # Redis for Caching
-  redis:
-    image: redis:7-alpine
-    container_name: stock_redis
-    restart: always
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-    networks:
-      - stock_network
-    command: redis-server --appendonly yes
-
-  # n8n Workflow Automation
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: stock_n8n
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    environment:
-      - DB_TYPE=${DB_TYPE}
-      - DB_POSTGRESDB_HOST=${DB_POSTGRESDB_HOST}
-      - DB_POSTGRESDB_PORT=${DB_POSTGRESDB_PORT}
-      - DB_POSTGRESDB_DATABASE=${DB_POSTGRESDB_DATABASE}
-      - DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER}
-      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD}
-      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
-      - N8N_HOST=${N8N_HOST}
-      - N8N_PORT=${N8N_PORT}
-      - N8N_PROTOCOL=${N8N_PROTOCOL}
-    ports:
-      - "5678:5678"
-    volumes:
-      - n8n_data:/home/node/.n8n
-      - ./n8n/workflows:/home/node/.n8n/workflows
-    networks:
-      - stock_network
-
-  # LocalStack for AWS Services
+  # LocalStack for AWS Services Simulation
   localstack:
     image: localstack/localstack:latest
     container_name: stock_localstack
-    restart: always
+    restart: unless-stopped
     environment:
       - SERVICES=${LOCALSTACK_SERVICES}
       - DEBUG=${LOCALSTACK_DEBUG}
       - DATA_DIR=${LOCALSTACK_DATA_DIR}
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - PERSISTENCE=1
+      - LAMBDA_EXECUTOR=docker
+      - LAMBDA_REMOTE_DOCKER=false
     ports:
       - "4566:4566"
       - "4510-4559:4510-4559"
@@ -147,6 +138,75 @@ services:
       - ./localstack:/etc/localstack/init/ready.d
     networks:
       - stock_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # n8n Workflow Automation
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: stock_n8n
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=${N8N_PORT}
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=America/New_York
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows
+    networks:
+      - stock_network
+
+  # API Gateway Service - Bloomberg-style REST API
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: stock_api_gateway
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - CLICKHOUSE_URL=${CLICKHOUSE_URL}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB}
+      - REDIS_URL=${REDIS_URL}
+      - API_PORT=${API_PORT}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - NODE_ENV=${NODE_ENV}
+      - JWT_SECRET=${JWT_SECRET}
+      - BCRYPT_ROUNDS=${BCRYPT_ROUNDS}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./services/api-gateway:/app
+      - /app/node_modules
+    networks:
+      - stock_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Stock Data Ingestion Service
   data-ingestion:
@@ -154,23 +214,41 @@ services:
       context: ./services/data-ingestion
       dockerfile: Dockerfile
     container_name: stock_data_ingestion
-    restart: always
+    restart: unless-stopped
     depends_on:
-      postgres:
+      clickhouse:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      - POSTGRES_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - KAFKA_BROKERS=kafka:9092
+      - CLICKHOUSE_URL=${CLICKHOUSE_URL}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB}
+      - KAFKA_BROKERS=${KAFKA_BROKERS}
+      - REDIS_URL=${REDIS_URL}
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
       - YAHOO_FINANCE_API_KEY=${YAHOO_FINANCE_API_KEY}
       - POLYGON_API_KEY=${POLYGON_API_KEY}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY}
+      - QUANDL_API_KEY=${QUANDL_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL}
+      - PORT=${DATA_INGESTION_PORT}
+      - NODE_ENV=${NODE_ENV}
+    ports:
+      - "3002:3002"
     volumes:
       - ./services/data-ingestion:/app
+      - /app/node_modules
     networks:
       - stock_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Backtesting Service
   backtesting:
@@ -178,58 +256,85 @@ services:
       context: ./services/backtesting
       dockerfile: Dockerfile
     container_name: stock_backtesting
-    restart: always
+    restart: unless-stopped
     depends_on:
-      postgres:
+      clickhouse:
         condition: service_healthy
       kafka:
         condition: service_healthy
     environment:
-      - POSTGRES_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - KAFKA_BROKERS=kafka:9092
+      - CLICKHOUSE_URL=${CLICKHOUSE_URL}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB}
+      - KAFKA_BROKERS=${KAFKA_BROKERS}
       - BACKTEST_START_DATE=${BACKTEST_START_DATE}
       - BACKTEST_END_DATE=${BACKTEST_END_DATE}
       - BACKTEST_INITIAL_CAPITAL=${BACKTEST_INITIAL_CAPITAL}
       - BACKTEST_COMMISSION=${BACKTEST_COMMISSION}
       - LOG_LEVEL=${LOG_LEVEL}
+      - PORT=${BACKTESTING_PORT}
+      - NODE_ENV=${NODE_ENV}
+    ports:
+      - "3003:3003"
     volumes:
       - ./services/backtesting:/app
+      - /app/node_modules
     networks:
       - stock_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # API Gateway Service
-  api-gateway:
+  # Next.js Client Application - Bloomberg Terminal UI
+  client:
     build:
-      context: ./services/api-gateway
+      context: ./client
       dockerfile: Dockerfile
-    container_name: stock_api_gateway
-    restart: always
+    container_name: stock_client
+    restart: unless-stopped
     depends_on:
-      postgres:
+      api-gateway:
         condition: service_healthy
-      redis:
-        condition: service_started
     environment:
-      - POSTGRES_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - REDIS_URL=${REDIS_URL}
-      - API_PORT=${API_PORT}
-      - LOG_LEVEL=${LOG_LEVEL}
+      - NODE_ENV=${NODE_ENV}
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
     ports:
-      - "3000:3000"
+      - "3001:3001"
     volumes:
-      - ./services/api-gateway:/app
+      - ./client:/app
+      - /app/node_modules
+      - /app/.next
     networks:
       - stock_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  postgres_data:
+  clickhouse_data:
+    driver: local
   zookeeper_data:
+    driver: local
   zookeeper_logs:
+    driver: local
   kafka_data:
+    driver: local
   redis_data:
+    driver: local
   n8n_data:
+    driver: local
   localstack_data:
+    driver: local
 
 networks:
   stock_network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
