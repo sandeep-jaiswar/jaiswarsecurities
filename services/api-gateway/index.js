@@ -32,10 +32,23 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Initialize Redis
-const redis = Redis.createClient({
-  url: process.env.REDIS_URL
-});
+// Initialize Redis (with error handling)
+let redis;
+try {
+  redis = Redis.createClient({
+    url: process.env.REDIS_URL
+  });
+  
+  redis.on('error', (err) => {
+    logger.error('Redis connection error:', err);
+  });
+  
+  redis.on('connect', () => {
+    logger.info('Connected to Redis');
+  });
+} catch (error) {
+  logger.error('Failed to create Redis client:', error);
+}
 
 // Initialize Express app
 const app = express();
@@ -81,6 +94,20 @@ const swaggerOptions = {
 const specs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Stock Screening API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      docs: '/api-docs',
+      symbols: '/api/symbols',
+      analytics: '/api/analytics/market-overview'
+    }
+  });
+});
+
 // Health check endpoint
 /**
  * @swagger
@@ -96,15 +123,23 @@ app.get('/health', async (req, res) => {
     // Check database connection
     await pool.query('SELECT 1');
     
-    // Check Redis connection
-    await redis.ping();
+    // Check Redis connection (optional)
+    let redisStatus = 'disconnected';
+    try {
+      if (redis && redis.isOpen) {
+        await redis.ping();
+        redisStatus = 'connected';
+      }
+    } catch (redisError) {
+      logger.warn('Redis health check failed:', redisError.message);
+    }
     
     res.json({ 
       status: 'healthy', 
       timestamp: new Date().toISOString(),
       services: {
         database: 'connected',
-        redis: 'connected'
+        redis: redisStatus
       }
     });
   } catch (error) {
@@ -246,9 +281,17 @@ app.get('/api/symbols/:symbol/ohlcv', async (req, res) => {
     const { symbol } = req.params;
     const { start_date, end_date, limit = 100 } = req.query;
     
-    // Check cache first
+    // Check cache first (if Redis is available)
     const cacheKey = `ohlcv:${symbol}:${start_date}:${end_date}:${limit}`;
-    const cachedData = await redis.get(cacheKey);
+    let cachedData = null;
+    
+    try {
+      if (redis && redis.isOpen) {
+        cachedData = await redis.get(cacheKey);
+      }
+    } catch (redisError) {
+      logger.warn('Redis cache check failed:', redisError.message);
+    }
     
     if (cachedData) {
       return res.json(JSON.parse(cachedData));
@@ -278,8 +321,14 @@ app.get('/api/symbols/:symbol/ohlcv', async (req, res) => {
     
     const result = await pool.query(query, params);
     
-    // Cache for 5 minutes
-    await redis.setEx(cacheKey, 300, JSON.stringify(result.rows));
+    // Cache for 5 minutes (if Redis is available)
+    try {
+      if (redis && redis.isOpen) {
+        await redis.setEx(cacheKey, 300, JSON.stringify(result.rows));
+      }
+    } catch (redisError) {
+      logger.warn('Redis cache set failed:', redisError.message);
+    }
     
     res.json(result.rows);
   } catch (error) {
@@ -294,9 +343,17 @@ app.get('/api/symbols/:symbol/indicators', async (req, res) => {
     const { symbol } = req.params;
     const { start_date, end_date, limit = 100 } = req.query;
     
-    // Check cache first
+    // Check cache first (if Redis is available)
     const cacheKey = `indicators:${symbol}:${start_date}:${end_date}:${limit}`;
-    const cachedData = await redis.get(cacheKey);
+    let cachedData = null;
+    
+    try {
+      if (redis && redis.isOpen) {
+        cachedData = await redis.get(cacheKey);
+      }
+    } catch (redisError) {
+      logger.warn('Redis cache check failed:', redisError.message);
+    }
     
     if (cachedData) {
       return res.json(JSON.parse(cachedData));
@@ -326,8 +383,14 @@ app.get('/api/symbols/:symbol/indicators', async (req, res) => {
     
     const result = await pool.query(query, params);
     
-    // Cache for 5 minutes
-    await redis.setEx(cacheKey, 300, JSON.stringify(result.rows));
+    // Cache for 5 minutes (if Redis is available)
+    try {
+      if (redis && redis.isOpen) {
+        await redis.setEx(cacheKey, 300, JSON.stringify(result.rows));
+      }
+    } catch (redisError) {
+      logger.warn('Redis cache set failed:', redisError.message);
+    }
     
     res.json(result.rows);
   } catch (error) {
@@ -495,7 +558,15 @@ app.get('/api/watchlists/:id/symbols', async (req, res) => {
 app.get('/api/analytics/market-overview', async (req, res) => {
   try {
     const cacheKey = 'market-overview';
-    const cachedData = await redis.get(cacheKey);
+    let cachedData = null;
+    
+    try {
+      if (redis && redis.isOpen) {
+        cachedData = await redis.get(cacheKey);
+      }
+    } catch (redisError) {
+      logger.warn('Redis cache check failed:', redisError.message);
+    }
     
     if (cachedData) {
       return res.json(JSON.parse(cachedData));
@@ -523,8 +594,14 @@ app.get('/api/analytics/market-overview', async (req, res) => {
       last_updated: new Date().toISOString()
     };
     
-    // Cache for 10 minutes
-    await redis.setEx(cacheKey, 600, JSON.stringify(overview));
+    // Cache for 10 minutes (if Redis is available)
+    try {
+      if (redis && redis.isOpen) {
+        await redis.setEx(cacheKey, 600, JSON.stringify(overview));
+      }
+    } catch (redisError) {
+      logger.warn('Redis cache set failed:', redisError.message);
+    }
     
     res.json(overview);
   } catch (error) {
@@ -587,9 +664,15 @@ app.use((req, res) => {
 // Initialize services
 async function initialize() {
   try {
-    // Connect to Redis
-    await redis.connect();
-    logger.info('Connected to Redis');
+    // Connect to Redis (optional)
+    if (redis) {
+      try {
+        await redis.connect();
+        logger.info('Connected to Redis');
+      } catch (redisError) {
+        logger.warn('Failed to connect to Redis (continuing without cache):', redisError.message);
+      }
+    }
     
     // Test database connection
     await pool.query('SELECT NOW()');
@@ -611,7 +694,9 @@ async function initialize() {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('Received SIGTERM, shutting down gracefully');
-  await redis.disconnect();
+  if (redis && redis.isOpen) {
+    await redis.disconnect();
+  }
   await pool.end();
   process.exit(0);
 });
