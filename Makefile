@@ -90,5 +90,5 @@ backup:
 
 # Restore database
 restore:
-	@read -p "Enter backup file path: " backup_file; \
+	@read -p "Enter backup file path: \" backup_file; \
 	docker-compose exec -T postgres psql -U $(POSTGRES_USER) $(POSTGRES_DB) < $$backup_file
