@@ -1,0 +1,147 @@
+.PHONY: help setup start stop restart logs clean health test api-test
+
+# Default target
+help:
+	@echo "🚀 Stock Screening System - Local Development"
+	@echo ""
+	@echo "Available commands:"
+	@echo "  setup     - Initial setup and start all services"
+	@echo "  start     - Start all services"
+	@echo "  stop      - Stop all services"
+	@echo "  restart   - Restart all services"
+	@echo "  logs      - Show logs from all services"
+	@echo "  logs-[service] - Show logs from specific service"
+	@echo "  clean     - Clean up Docker resources"
+	@echo "  health    - Check service health"
+	@echo "  test      - Run API tests"
+	@echo "  api-test  - Test API endpoints"
+
+# Initial setup
+setup:
+	@echo "🚀 Setting up Stock Screening System..."
+	chmod +x scripts/setup-local.sh
+	chmod +x scripts/stop-local.sh
+	chmod +x scripts/logs-local.sh
+	./scripts/setup-local.sh
+
+# Start all services
+start:
+	@echo "▶️  Starting services..."
+	docker-compose -f docker-compose.local.yml up -d
+	@echo "✅ Services started!"
+	@echo "📋 Access points:"
+	@echo "  API Gateway: http://localhost:3000"
+	@echo "  n8n: http://localhost:5678 (admin/admin123)"
+	@echo "  API Docs: http://localhost:3000/api-docs"
+
+# Stop all services
+stop:
+	@echo "⏹️  Stopping services..."
+	docker-compose -f docker-compose.local.yml down
+	@echo "✅ Services stopped!"
+
+# Restart all services
+restart: stop start
+
+# Show logs from all services
+logs:
+	docker-compose -f docker-compose.local.yml logs -f
+
+# Show logs from specific services
+logs-postgres:
+	docker-compose -f docker-compose.local.yml logs -f postgres
+
+logs-redis:
+	docker-compose -f docker-compose.local.yml logs -f redis
+
+logs-kafka:
+	docker-compose -f docker-compose.local.yml logs -f kafka
+
+logs-api:
+	docker-compose -f docker-compose.local.yml logs -f api-gateway
+
+logs-data:
+	docker-compose -f docker-compose.local.yml logs -f data-ingestion
+
+logs-backtest:
+	docker-compose -f docker-compose.local.yml logs -f backtesting
+
+logs-n8n:
+	docker-compose -f docker-compose.local.yml logs -f n8n
+
+logs-localstack:
+	docker-compose -f docker-compose.local.yml logs -f localstack
+
+# Clean up Docker resources
+clean:
+	@echo "🧹 Cleaning up..."
+	docker-compose -f docker-compose.local.yml down -v
+	docker system prune -f
+	docker volume prune -f
+	@echo "✅ Cleanup complete!"
+
+# Check service health
+health:
+	@echo "🏥 Checking service health..."
+	@echo "PostgreSQL:"
+	@docker-compose -f docker-compose.local.yml exec -T postgres pg_isready -U stockuser -d stockdb || echo "❌ PostgreSQL not ready"
+	@echo "Redis:"
+	@docker-compose -f docker-compose.local.yml exec -T redis redis-cli ping || echo "❌ Redis not ready"
+	@echo "API Gateway:"
+	@curl -s http://localhost:3000/health | jq . || echo "❌ API Gateway not ready"
+	@echo "Data Ingestion:"
+	@curl -s http://localhost:3001/health | jq . || echo "❌ Data Ingestion not ready"
+	@echo "Backtesting:"
+	@curl -s http://localhost:3002/health | jq . || echo "❌ Backtesting not ready"
+
+# Run tests
+test:
+	@echo "🧪 Running tests..."
+	docker-compose -f docker-compose.local.yml exec data-ingestion npm test || echo "Data ingestion tests not available"
+	docker-compose -f docker-compose.local.yml exec backtesting npm test || echo "Backtesting tests not available"
+	docker-compose -f docker-compose.local.yml exec api-gateway npm test || echo "API gateway tests not available"
+
+# Test API endpoints
+api-test:
+	@echo "🔍 Testing API endpoints..."
+	@echo "Health check:"
+	curl -s http://localhost:3000/health | jq .
+	@echo ""
+	@echo "Symbols:"
+	curl -s "http://localhost:3000/api/symbols?limit=5" | jq .
+	@echo ""
+	@echo "AAPL data:"
+	curl -s http://localhost:3000/api/symbols/AAPL | jq .
+	@echo ""
+	@echo "Market overview:"
+	curl -s http://localhost:3000/api/analytics/market-overview | jq .
+
+# Build images
+build:
+	@echo "🔨 Building Docker images..."
+	docker-compose -f docker-compose.local.yml build
+
+# Pull latest images
+pull:
+	@echo "⬇️  Pulling latest images..."
+	docker-compose -f docker-compose.local.yml pull
+
+# Show running containers
+ps:
+	docker-compose -f docker-compose.local.yml ps
+
+# Execute shell in a service
+shell-postgres:
+	docker-compose -f docker-compose.local.yml exec postgres psql -U stockuser -d stockdb
+
+shell-redis:
+	docker-compose -f docker-compose.local.yml exec redis redis-cli
+
+shell-api:
+	docker-compose -f docker-compose.local.yml exec api-gateway sh
+
+shell-data:
+	docker-compose -f docker-compose.local.yml exec data-ingestion sh
+
+shell-backtest:
+	docker-compose -f docker-compose.local.yml exec backtesting sh

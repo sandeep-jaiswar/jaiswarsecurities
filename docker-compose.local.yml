@@ -1,0 +1,245 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: stock_postgres_local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - stock_network_local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Caching
+  redis:
+    image: redis:7-alpine
+    container_name: stock_redis_local
+    restart: unless-stopped
+    volumes:
+      - redis_data_local:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - stock_network_local
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: stock_zookeeper_local
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
+      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
+    volumes:
+      - zookeeper_data_local:/var/lib/zookeeper/data
+      - zookeeper_logs_local:/var/lib/zookeeper/log
+    networks:
+      - stock_network_local
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Kafka Message Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: stock_kafka_local
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
+      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_LISTENERS: ${KAFKA_LISTENERS}
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_CREATE_TOPICS_ENABLE}
+      KAFKA_DELETE_TOPIC_ENABLE: ${KAFKA_DELETE_TOPIC_ENABLE}
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data_local:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    networks:
+      - stock_network_local
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # LocalStack for AWS Services
+  localstack:
+    image: localstack/localstack:latest
+    container_name: stock_localstack_local
+    restart: unless-stopped
+    environment:
+      - SERVICES=${LOCALSTACK_SERVICES}
+      - DEBUG=${LOCALSTACK_DEBUG}
+      - DATA_DIR=${LOCALSTACK_DATA_DIR}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    volumes:
+      - localstack_data_local:/tmp/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./localstack:/etc/localstack/init/ready.d
+    networks:
+      - stock_network_local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # n8n Workflow Automation
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: stock_n8n_local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_TYPE=${DB_TYPE}
+      - DB_POSTGRESDB_HOST=${DB_POSTGRESDB_HOST}
+      - DB_POSTGRESDB_PORT=${DB_POSTGRESDB_PORT}
+      - DB_POSTGRESDB_DATABASE=${DB_POSTGRESDB_DATABASE}
+      - DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER}
+      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD}
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=${N8N_PORT}
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data_local:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows
+    networks:
+      - stock_network_local
+
+  # Stock Data Ingestion Service
+  data-ingestion:
+    build:
+      context: ./services/data-ingestion
+      dockerfile: Dockerfile
+    container_name: stock_data_ingestion_local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - POSTGRES_URL=${POSTGRES_URL}
+      - KAFKA_BROKERS=${KAFKA_BROKERS}
+      - REDIS_URL=${REDIS_URL}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+      - YAHOO_FINANCE_API_KEY=${YAHOO_FINANCE_API_KEY}
+      - POLYGON_API_KEY=${POLYGON_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - PORT=${DATA_INGESTION_PORT}
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./services/data-ingestion:/app
+      - /app/node_modules
+    networks:
+      - stock_network_local
+
+  # Backtesting Service
+  backtesting:
+    build:
+      context: ./services/backtesting
+      dockerfile: Dockerfile
+    container_name: stock_backtesting_local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      - POSTGRES_URL=${POSTGRES_URL}
+      - KAFKA_BROKERS=${KAFKA_BROKERS}
+      - BACKTEST_START_DATE=${BACKTEST_START_DATE}
+      - BACKTEST_END_DATE=${BACKTEST_END_DATE}
+      - BACKTEST_INITIAL_CAPITAL=${BACKTEST_INITIAL_CAPITAL}
+      - BACKTEST_COMMISSION=${BACKTEST_COMMISSION}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - PORT=${BACKTESTING_PORT}
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./services/backtesting:/app
+      - /app/node_modules
+    networks:
+      - stock_network_local
+
+  # API Gateway Service
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: stock_api_gateway_local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - POSTGRES_URL=${POSTGRES_URL}
+      - REDIS_URL=${REDIS_URL}
+      - API_PORT=${API_GATEWAY_PORT}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./services/api-gateway:/app
+      - /app/node_modules
+    networks:
+      - stock_network_local
+
+volumes:
+  postgres_data_local:
+  zookeeper_data_local:
+  zookeeper_logs_local:
+  kafka_data_local:
+  redis_data_local:
+  n8n_data_local:
+  localstack_data_local:
+
+networks:
+  stock_network_local:
+    driver: bridge
