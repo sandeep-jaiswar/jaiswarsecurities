@@ -7,21 +7,31 @@ services:
     container_name: stock_postgres_local
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-stockuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stockpass123}
+      POSTGRES_DB: ${POSTGRES_DB:-stockdb}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data_local:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d
+      - ./database/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     networks:
       - stock_network_local
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stockuser} -d ${POSTGRES_DB:-stockdb}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    command: >
+      postgres 
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
 
   # Redis for Caching
   redis:
@@ -34,7 +44,14 @@ services:
       - "6379:6379"
     networks:
       - stock_network_local
-    command: redis-server --appendonly yes
+    command: >
+      redis-server 
+      --appendonly yes 
+      --maxmemory 512mb 
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -49,6 +66,9 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_MAX_CLIENT_CNXNS: 60
     volumes:
       - zookeeper_data_local:/var/lib/zookeeper/data
       - zookeeper_logs_local:/var/lib/zookeeper/log
@@ -82,6 +102,10 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_JMX_PORT: 9101
       KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms512M"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
     volumes:
       - kafka_data_local:/var/lib/kafka/data
     ports:
@@ -105,6 +129,9 @@ services:
       - DEBUG=1
       - DATA_DIR=/tmp/localstack/data
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - PERSISTENCE=1
+      - LAMBDA_EXECUTOR=docker
+      - LAMBDA_REMOTE_DOCKER=false
     ports:
       - "4566:4566"
       - "4510-4559:4510-4559"
@@ -132,15 +159,17 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=stockdb
-      - DB_POSTGRESDB_USER=stockuser
-      - DB_POSTGRESDB_PASSWORD=stockpass123
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-stockdb}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-stockuser}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-stockpass123}
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=admin123
       - N8N_HOST=localhost
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=America/New_York
     ports:
       - "5678:5678"
     volumes:
@@ -162,11 +191,14 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - POSTGRES_URL=postgresql://stockuser:stockpass123@postgres:5432/stockdb
+      - POSTGRES_URL=postgresql://${POSTGRES_USER:-stockuser}:${POSTGRES_PASSWORD:-stockpass123}@postgres:5432/${POSTGRES_DB:-stockdb}
       - REDIS_URL=redis://redis:6379
       - API_PORT=3000
       - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5678
       - LOG_LEVEL=info
+      - NODE_ENV=development
+      - JWT_SECRET=local-development-jwt-secret
+      - BCRYPT_ROUNDS=10
     ports:
       - "3000:3000"
     volumes:
@@ -174,6 +206,11 @@ services:
       - /app/node_modules
     networks:
       - stock_network_local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Stock Data Ingestion Service
   data-ingestion:
@@ -190,14 +227,15 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - POSTGRES_URL=postgresql://stockuser:stockpass123@postgres:5432/stockdb
+      - POSTGRES_URL=postgresql://${POSTGRES_USER:-stockuser}:${POSTGRES_PASSWORD:-stockpass123}@postgres:5432/${POSTGRES_DB:-stockdb}
       - KAFKA_BROKERS=kafka:9092
       - REDIS_URL=redis://redis:6379
-      - ALPHA_VANTAGE_API_KEY=demo
-      - YAHOO_FINANCE_API_KEY=
-      - POLYGON_API_KEY=
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-demo}
+      - YAHOO_FINANCE_API_KEY=${YAHOO_FINANCE_API_KEY:-}
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-}
       - LOG_LEVEL=info
       - PORT=3001
+      - NODE_ENV=development
     ports:
       - "3001:3001"
     volumes:
@@ -205,6 +243,11 @@ services:
       - /app/node_modules
     networks:
       - stock_network_local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Backtesting Service
   backtesting:
@@ -219,14 +262,15 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      - POSTGRES_URL=postgresql://stockuser:stockpass123@postgres:5432/stockdb
+      - POSTGRES_URL=postgresql://${POSTGRES_USER:-stockuser}:${POSTGRES_PASSWORD:-stockpass123}@postgres:5432/${POSTGRES_DB:-stockdb}
       - KAFKA_BROKERS=kafka:9092
-      - BACKTEST_START_DATE=2023-01-01
-      - BACKTEST_END_DATE=2023-12-31
-      - BACKTEST_INITIAL_CAPITAL=100000
-      - BACKTEST_COMMISSION=0.001
+      - BACKTEST_START_DATE=${BACKTEST_START_DATE:-2023-01-01}
+      - BACKTEST_END_DATE=${BACKTEST_END_DATE:-2023-12-31}
+      - BACKTEST_INITIAL_CAPITAL=${BACKTEST_INITIAL_CAPITAL:-100000}
+      - BACKTEST_COMMISSION=${BACKTEST_COMMISSION:-0.001}
       - LOG_LEVEL=info
       - PORT=3002
+      - NODE_ENV=development
     ports:
       - "3002:3002"
     volumes:
@@ -234,16 +278,31 @@ services:
       - /app/node_modules
     networks:
       - stock_network_local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data_local:
+    driver: local
   zookeeper_data_local:
+    driver: local
   zookeeper_logs_local:
+    driver: local
   kafka_data_local:
+    driver: local
   redis_data_local:
+    driver: local
   n8n_data_local:
+    driver: local
   localstack_data_local:
+    driver: local
 
 networks:
   stock_network_local:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
