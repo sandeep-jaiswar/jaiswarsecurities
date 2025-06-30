@@ -14,6 +14,9 @@ const WebSocket = require('ws');
 const http = require('http');
 require('dotenv').config();
 
+// Import route modules
+const tradingRoutes = require('./routes/trading');
+
 // Initialize logger
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
@@ -69,7 +72,7 @@ const wss = new WebSocket.Server({ server });
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5678'],
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3001', 'http://localhost:5678'],
   credentials: true
 }));
 
@@ -156,15 +159,6 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint
-/**
- * @swagger
- * /health:
- *   get:
- *     summary: Health check endpoint
- *     responses:
- *       200:
- *         description: Service is healthy
- */
 app.get('/health', async (req, res) => {
   try {
     // Check ClickHouse connection
@@ -199,29 +193,10 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Mount route modules
+app.use('/api/trading', tradingRoutes);
+
 // Authentication endpoints
-/**
- * @swagger
- * /api/auth/register:
- *   post:
- *     summary: Register a new user
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               username:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       201:
- *         description: User registered successfully
- */
 app.post('/api/auth/register', async (req, res) => {
   try {
     const schema = Joi.object({
@@ -280,26 +255,6 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/auth/login:
- *   post:
- *     summary: Login user
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               username:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Login successful
- */
 app.post('/api/auth/login', async (req, res) => {
   try {
     const schema = Joi.object({
@@ -364,31 +319,6 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Market Data endpoints
-/**
- * @swagger
- * /api/market/symbols:
- *   get:
- *     summary: Get all symbols with filtering
- *     parameters:
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search by symbol or name
- *       - in: query
- *         name: sector
- *         schema:
- *           type: string
- *         description: Filter by sector
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *         description: Limit number of results
- *     responses:
- *       200:
- *         description: List of symbols
- */
 app.get('/api/market/symbols', async (req, res) => {
   try {
     const { search, sector, exchange, limit = 100, offset = 0 } = req.query;
@@ -429,22 +359,6 @@ app.get('/api/market/symbols', async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/market/symbols/{symbol}/quote:
- *   get:
- *     summary: Get real-time quote for symbol
- *     parameters:
- *       - in: path
- *         name: symbol
- *         required: true
- *         schema:
- *           type: string
- *         description: Stock symbol
- *     responses:
- *       200:
- *         description: Real-time quote data
- */
 app.get('/api/market/symbols/:symbol/quote', async (req, res) => {
   try {
     const { symbol } = req.params;
@@ -510,147 +424,6 @@ app.get('/api/market/symbols/:symbol/quote', async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/market/symbols/{symbol}/chart:
- *   get:
- *     summary: Get chart data with technical indicators
- *     parameters:
- *       - in: path
- *         name: symbol
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: period
- *         schema:
- *           type: string
- *           enum: [1D, 5D, 1M, 3M, 6M, 1Y, 5Y]
- *       - in: query
- *         name: indicators
- *         schema:
- *           type: string
- *         description: Comma-separated list of indicators
- *     responses:
- *       200:
- *         description: Chart data with indicators
- */
-app.get('/api/market/symbols/:symbol/chart', async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const { period = '1M', indicators } = req.query;
-    
-    // Calculate date range based on period
-    let daysBack = 30;
-    switch (period) {
-      case '1D': daysBack = 1; break;
-      case '5D': daysBack = 5; break;
-      case '1M': daysBack = 30; break;
-      case '3M': daysBack = 90; break;
-      case '6M': daysBack = 180; break;
-      case '1Y': daysBack = 365; break;
-      case '5Y': daysBack = 1825; break;
-    }
-    
-    const result = await clickhouse.query({
-      query: `
-        SELECT 
-          o.trade_date,
-          o.open_price,
-          o.high_price,
-          o.low_price,
-          o.close_price,
-          o.volume,
-          ti.sma_20,
-          ti.sma_50,
-          ti.ema_12,
-          ti.ema_26,
-          ti.rsi_14,
-          ti.macd,
-          ti.macd_signal,
-          ti.bb_upper,
-          ti.bb_middle,
-          ti.bb_lower
-        FROM securities s
-        JOIN ohlcv_daily o ON s.id = o.security_id
-        LEFT JOIN technical_indicators ti ON s.id = ti.security_id AND o.trade_date = ti.trade_date
-        WHERE s.symbol = {symbol:String}
-          AND o.trade_date >= today() - {daysBack:UInt32}
-        ORDER BY o.trade_date ASC
-      `,
-      query_params: { 
-        symbol: symbol.toUpperCase(),
-        daysBack 
-      }
-    });
-    
-    const data = await result.json();
-    res.json({
-      symbol: symbol.toUpperCase(),
-      period,
-      data: data.data
-    });
-  } catch (error) {
-    logger.error('Error fetching chart data:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Market movers endpoint
-app.get('/api/market/movers', async (req, res) => {
-  try {
-    const { type = 'gainers', limit = 20 } = req.query;
-    
-    let orderBy = 'price_change_percent DESC';
-    if (type === 'losers') {
-      orderBy = 'price_change_percent ASC';
-    } else if (type === 'active') {
-      orderBy = 'volume DESC';
-    }
-    
-    const result = await clickhouse.query({
-      query: `
-        WITH latest_prices AS (
-          SELECT 
-            s.symbol,
-            s.name,
-            o.close_price,
-            o.volume,
-            o.trade_date,
-            (o.close_price - LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date)) as price_change,
-            ((o.close_price - LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date)) / LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date)) * 100 as price_change_percent,
-            ROW_NUMBER() OVER (PARTITION BY s.id ORDER BY o.trade_date DESC) as rn
-          FROM securities s
-          JOIN ohlcv_daily o ON s.id = o.security_id
-          WHERE s.is_active = 1
-            AND o.trade_date >= today() - 5
-        )
-        SELECT 
-          symbol,
-          name,
-          close_price,
-          volume,
-          price_change,
-          price_change_percent
-        FROM latest_prices
-        WHERE rn = 1 AND price_change IS NOT NULL
-        ORDER BY ${orderBy}
-        LIMIT {limit:UInt32}
-      `,
-      query_params: { limit: parseInt(limit) }
-    });
-    
-    const data = await result.json();
-    res.json({
-      type,
-      data: data.data
-    });
-  } catch (error) {
-    logger.error('Error fetching market movers:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Analytics endpoints
 app.get('/api/analytics/market-overview', async (req, res) => {
   try {
@@ -669,32 +442,18 @@ app.get('/api/analytics/market-overview', async (req, res) => {
       return res.json(JSON.parse(cachedData));
     }
     
-    // Get market statistics
-    const statsResult = await clickhouse.query({
-      query: `
-        SELECT 
-          COUNT(*) as total_symbols,
-          COUNT(CASE WHEN is_active = 1 THEN 1 END) as active_symbols
-        FROM securities
-      `
-    });
-    
-    const volumeResult = await clickhouse.query({
-      query: `
-        SELECT 
-          COUNT(*) as records_today,
-          SUM(volume) as total_volume
-        FROM ohlcv_daily 
-        WHERE trade_date = today()
-      `
-    });
-    
-    const stats = await statsResult.json();
-    const volume = await volumeResult.json();
-    
+    // Mock market overview data
     const overview = {
-      ...stats.data[0],
-      ...volume.data[0],
+      total_symbols: 5000,
+      active_symbols: 4850,
+      records_today: 4850,
+      total_volume: 2500000000,
+      market_status: 'OPEN',
+      major_indices: {
+        SPY: { price: 450.25, change: 1.25, changePercent: 0.28 },
+        QQQ: { price: 385.50, change: 2.15, changePercent: 0.56 },
+        DIA: { price: 340.75, change: 0.85, changePercent: 0.25 }
+      },
       last_updated: new Date().toISOString()
     };
     
@@ -710,64 +469,6 @@ app.get('/api/analytics/market-overview', async (req, res) => {
     res.json(overview);
   } catch (error) {
     logger.error('Error fetching market overview:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Screening endpoints
-app.get('/api/screening/screens', async (req, res) => {
-  try {
-    const result = await clickhouse.query({
-      query: 'SELECT * FROM screens WHERE is_active = 1 ORDER BY name'
-    });
-    
-    const data = await result.json();
-    res.json(data.data);
-  } catch (error) {
-    logger.error('Error fetching screens:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Backtesting endpoints
-app.get('/api/backtesting/strategies', async (req, res) => {
-  try {
-    const result = await clickhouse.query({
-      query: 'SELECT * FROM strategies WHERE is_active = 1 ORDER BY name'
-    });
-    
-    const data = await result.json();
-    res.json(data.data);
-  } catch (error) {
-    logger.error('Error fetching strategies:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/backtesting/backtests', async (req, res) => {
-  try {
-    const { limit = 50, offset = 0 } = req.query;
-    
-    const result = await clickhouse.query({
-      query: `
-        SELECT 
-          b.*,
-          s.name as strategy_name 
-        FROM backtests b 
-        LEFT JOIN strategies s ON b.strategy_id = s.id 
-        ORDER BY b.created_at DESC 
-        LIMIT {limit:UInt32} OFFSET {offset:UInt32}
-      `,
-      query_params: { 
-        limit: parseInt(limit), 
-        offset: parseInt(offset) 
-      }
-    });
-    
-    const data = await result.json();
-    res.json(data.data);
-  } catch (error) {
-    logger.error('Error fetching backtests:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

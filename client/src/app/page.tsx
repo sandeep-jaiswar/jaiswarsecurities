@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { TerminalLayout } from '@/components/layout/TerminalLayout'
 import { MarketOverview } from '@/components/dashboard/MarketOverview'
 import { WatchlistPanel } from '@/components/watchlist/WatchlistPanel'
@@ -61,6 +62,12 @@ export default function HomePage() {
             <div className="flex items-center space-x-4">
               <span>API: Connected</span>
               <span>Data: {new Date().toLocaleTimeString()}</span>
+              <Link 
+                href="/trading" 
+                className="px-3 py-1 bg-terminal-accent text-black rounded text-xs hover:bg-opacity-80"
+              >
+                Advanced Trading →
+              </Link>
             </div>
           </div>
         </div>
