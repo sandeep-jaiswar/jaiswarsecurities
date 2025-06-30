@@ -1,0 +1,91 @@
+{
+  "name": "bloomberg-stock-terminal",
+  "version": "2.0.0",
+  "description": "Bloomberg-style Stock Terminal with ClickHouse",
+  "private": true,
+  "workspaces": [
+    "client",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "docker-compose up -d",
+    "build": "npm run build:client && npm run build:services",
+    "build:client": "cd client && npm run build",
+    "build:services": "echo 'Services built via Docker'",
+    "start": "docker-compose up -d",
+    "stop": "docker-compose down",
+    "clean": "docker-compose down -v && docker system prune -f",
+    "test": "npm run test:client && npm run test:services",
+    "test:client": "cd client && npm test -- --watchAll=false",
+    "test:services": "npm run test:api-gateway && npm run test:data-ingestion && npm run test:backtesting",
+    "test:api-gateway": "cd services/api-gateway && npm test -- --watchAll=false",
+    "test:data-ingestion": "cd services/data-ingestion && npm test -- --watchAll=false",
+    "test:backtesting": "cd services/backtesting && npm test -- --watchAll=false",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings 0",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md,yml,yaml}\"",
+    "type-check": "cd client && npm run type-check",
+    "prepare": "husky install",
+    "pre-commit": "lint-staged",
+    "security:audit": "npm audit --audit-level=high",
+    "security:fix": "npm audit fix",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "health": "curl -f http://localhost:3000/health && curl -f http://localhost:3001 && curl -f http://localhost:3002/health && curl -f http://localhost:3003/health",
+    "setup": "chmod +x scripts/setup.sh && ./scripts/setup.sh"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.0.4",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-security": "^1.7.1",
+    "eslint-plugin-sonarjs": "^0.23.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test && npm run type-check"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sandeep-jaiswar/jaiswarsecurities"
+  },
+  "keywords": [
+    "bloomberg",
+    "terminal",
+    "stock",
+    "trading",
+    "clickhouse",
+    "financial",
+    "analytics"
+  ],
+  "author": "Your Organization",
+  "license": "MIT"
+}
