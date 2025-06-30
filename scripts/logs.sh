@@ -12,19 +12,19 @@ print_status() {
 show_service_logs() {
     local service=$1
     print_status "Showing logs for $service..."
-    docker-compose -f docker-compose.local.yml logs -f --tail=100 $service
+    docker-compose logs -f --tail=100 $service
 }
 
 # Function to show all logs
 show_all_logs() {
     print_status "Showing logs for all services..."
-    docker-compose -f docker-compose.local.yml logs -f --tail=50
+    docker-compose logs -f --tail=50
 }
 
 # Main script
 if [ $# -eq 0 ]; then
     echo "📋 Available services:"
-    echo "  postgres"
+    echo "  clickhouse"
     echo "  redis"
     echo "  kafka"
     echo "  zookeeper"
@@ -33,6 +33,7 @@ if [ $# -eq 0 ]; then
     echo "  data-ingestion"
     echo "  backtesting"
     echo "  api-gateway"
+    echo "  client"
     echo ""
     echo "Usage:"
     echo "  $0 [service-name]  # Show logs for specific service"

@@ -2,7 +2,7 @@
 
 set -e
 
-echo "🛑 Stopping Stock Screening System..."
+echo "🛑 Stopping Bloomberg-style Stock Terminal..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -21,7 +21,7 @@ print_success() {
 
 # Stop all services
 print_status "Stopping all services..."
-docker-compose -f docker-compose.local.yml down
+docker-compose down
 
 print_success "✅ All services stopped successfully!"
 
@@ -31,7 +31,7 @@ read -p "Do you want to remove all data volumes? This will delete all data! (y/N
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     print_status "Removing data volumes..."
-    docker-compose -f docker-compose.local.yml down -v
+    docker-compose down -v
     print_success "✅ Data volumes removed!"
 fi
 
@@ -46,4 +46,4 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo "🎉 Stock Screening System has been stopped!"
+echo "🎉 Bloomberg-style Stock Terminal has been stopped!"

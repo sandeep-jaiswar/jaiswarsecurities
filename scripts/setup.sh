@@ -40,10 +40,71 @@ if ! command -v docker-compose &> /dev/null; then
     exit 1
 fi
 
-# Check if .env file exists
+# Check if .env file exists, if not create from template
 if [ ! -f .env ]; then
-    print_error ".env file not found. Please create it from the template."
-    exit 1
+    print_status "Creating .env file from template..."
+    cat > .env << 'EOF'
+# Environment
+NODE_ENV=development
+
+# ClickHouse Configuration
+CLICKHOUSE_URL=http://clickhouse:8123
+CLICKHOUSE_USER=stockuser
+CLICKHOUSE_PASSWORD=stockpass123
+CLICKHOUSE_DB=stockdb
+
+# Redis Configuration
+REDIS_URL=redis://redis:6379
+
+# Kafka Configuration
+KAFKA_BROKERS=kafka:9092
+ZOOKEEPER_CLIENT_PORT=2181
+ZOOKEEPER_TICK_TIME=2000
+
+# API Configuration
+API_PORT=3000
+DATA_INGESTION_PORT=3002
+BACKTESTING_PORT=3003
+ALLOWED_ORIGINS=http://localhost:3001,http://localhost:5678
+LOG_LEVEL=info
+
+# Next.js Configuration
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
+NEXT_PUBLIC_WS_URL=ws://localhost:3000
+
+# Authentication
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+BCRYPT_ROUNDS=10
+
+# External API Keys (Optional)
+ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
+YAHOO_FINANCE_API_KEY=your-yahoo-finance-key
+POLYGON_API_KEY=your-polygon-key
+FINNHUB_API_KEY=your-finnhub-key
+QUANDL_API_KEY=your-quandl-key
+
+# n8n Configuration
+N8N_BASIC_AUTH_ACTIVE=true
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=admin123
+N8N_HOST=localhost
+N8N_PORT=5678
+N8N_PROTOCOL=http
+
+# LocalStack Configuration
+LOCALSTACK_SERVICES=s3,sqs,sns,logs,cloudformation
+LOCALSTACK_DEBUG=1
+LOCALSTACK_DATA_DIR=/tmp/localstack
+
+# Backtesting Configuration
+BACKTEST_START_DATE=2020-01-01
+BACKTEST_END_DATE=2024-12-31
+BACKTEST_INITIAL_CAPITAL=100000
+BACKTEST_COMMISSION=0.001
+EOF
+    print_success "Environment file created"
+else
+    print_warning ".env file already exists. Using existing configuration."
 fi
 
 # Create necessary directories
@@ -57,41 +118,6 @@ mkdir -p services/backtesting/logs
 mkdir -p services/api-gateway/logs
 mkdir -p uploads
 mkdir -p localstack
-
-# Generate package-lock.json files for services if they don't exist
-print_status "Checking service dependencies..."
-
-# API Gateway
-if [ ! -f services/api-gateway/package-lock.json ]; then
-    print_status "Generating package-lock.json for API Gateway..."
-    cd services/api-gateway
-    npm install --package-lock-only
-    cd ../..
-fi
-
-# Data Ingestion
-if [ ! -f services/data-ingestion/package-lock.json ]; then
-    print_status "Generating package-lock.json for Data Ingestion..."
-    cd services/data-ingestion
-    npm install --package-lock-only
-    cd ../..
-fi
-
-# Backtesting
-if [ ! -f services/backtesting/package-lock.json ]; then
-    print_status "Generating package-lock.json for Backtesting..."
-    cd services/backtesting
-    npm install --package-lock-only
-    cd ../..
-fi
-
-# Client
-if [ ! -f client/package-lock.json ]; then
-    print_status "Generating package-lock.json for Next.js Client..."
-    cd client
-    npm install --package-lock-only
-    cd ..
-fi
 
 # Build Docker images
 print_status "Building Docker images..."
@@ -169,18 +195,11 @@ else
     print_warning "LocalStack deployment script not found"
 fi
 
-# Test ClickHouse connection and show sample data
-print_status "Testing ClickHouse connection and showing sample data..."
-sleep 5
-
-# Show companies in database
-print_status "Sample companies in database:"
-docker-compose exec -T clickhouse clickhouse-client --user=stockuser --password=stockpass123 --database=stockdb --query="SELECT name, symbol FROM companies c JOIN securities s ON c.id = s.company_id LIMIT 5 FORMAT Pretty" 2>/dev/null || print_warning "Could not fetch sample data"
-
 print_success "🎉 Bloomberg-style Stock Terminal is now running!"
 echo ""
 echo "📋 Access Points:"
 echo "  🌐 Next.js Client:      http://localhost:3001"
+echo "  📈 Trading Platform:    http://localhost:3001/trading"
 echo "  🔗 API Gateway:         http://localhost:3000"
 echo "  📚 API Documentation:   http://localhost:3000/api-docs"
 echo "  🗄️  ClickHouse Web UI:   http://localhost:8123"
@@ -198,6 +217,7 @@ echo "📊 Sample API Calls:"
 echo "  curl http://localhost:3000/api/market/symbols"
 echo "  curl http://localhost:3000/api/market/symbols/AAPL/quote"
 echo "  curl http://localhost:3000/api/analytics/market-overview"
+echo "  curl http://localhost:3000/api/trading/chart/AAPL"
 echo ""
 echo "🗄️  ClickHouse Access:"
 echo "  make clickhouse-shell"
@@ -207,10 +227,9 @@ echo "📊 View Logs:"
 echo "  docker-compose logs -f [service-name]"
 echo ""
 echo "🛑 To stop the system:"
-echo "  docker-compose down"
+echo "  make stop"
 echo ""
 echo "🧹 To clean up everything:"
-echo "  docker-compose down -v"
-echo "  docker system prune -f"
+echo "  make clean"
 echo ""
 echo "📖 For more commands, see the Makefile"

@@ -25,6 +25,8 @@ setup:
 	chmod +x scripts/setup.sh
 	chmod +x scripts/stop.sh
 	chmod +x scripts/logs.sh
+	chmod +x scripts/generate-package-locks.sh
+	./scripts/generate-package-locks.sh
 	./scripts/setup.sh
 
 # Start all services
@@ -34,6 +36,7 @@ start:
 	@echo "✅ Services started!"
 	@echo "📋 Access points:"
 	@echo "  Next.js Client: http://localhost:3001"
+	@echo "  Trading Platform: http://localhost:3001/trading"
 	@echo "  API Gateway: http://localhost:3000"
 	@echo "  ClickHouse Web UI: http://localhost:8123"
 	@echo "  n8n: http://localhost:5678 (admin/admin123)"
@@ -93,14 +96,19 @@ health:
 	@echo "🏥 Checking service health..."
 	@echo "ClickHouse:"
 	@curl -s http://localhost:8123/ping || echo "❌ ClickHouse not ready"
+	@echo ""
 	@echo "Redis:"
 	@docker-compose exec -T redis redis-cli ping || echo "❌ Redis not ready"
+	@echo ""
 	@echo "API Gateway:"
 	@curl -s http://localhost:3000/health | jq . || echo "❌ API Gateway not ready"
+	@echo ""
 	@echo "Data Ingestion:"
 	@curl -s http://localhost:3002/health | jq . || echo "❌ Data Ingestion not ready"
+	@echo ""
 	@echo "Backtesting:"
 	@curl -s http://localhost:3003/health | jq . || echo "❌ Backtesting not ready"
+	@echo ""
 	@echo "Next.js Client:"
 	@curl -s http://localhost:3001 > /dev/null && echo "✅ Next.js Client ready" || echo "❌ Next.js Client not ready"
 
@@ -125,6 +133,9 @@ api-test:
 	@echo ""
 	@echo "AAPL quote:"
 	curl -s http://localhost:3000/api/market/symbols/AAPL/quote | jq .
+	@echo ""
+	@echo "Trading chart:"
+	curl -s http://localhost:3000/api/trading/chart/AAPL | jq .
 
 # Build Next.js client
 build-client:
@@ -205,7 +216,7 @@ sample-queries:
 # Deploy to production
 deploy:
 	@echo "🚀 Deploying to production..."
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+	docker-compose -f docker-compose.yml up -d
 
 # Backup ClickHouse data
 backup:
@@ -219,6 +230,7 @@ init: build start
 	@echo "✅ System initialized successfully!"
 	@echo "📋 Access points:"
 	@echo "  Next.js Client: http://localhost:3001"
+	@echo "  Trading Platform: http://localhost:3001/trading"
 	@echo "  API Gateway: http://localhost:3000"
 	@echo "  ClickHouse: http://localhost:8123"
 	@echo "  n8n: http://localhost:5678 (admin/admin123)"
