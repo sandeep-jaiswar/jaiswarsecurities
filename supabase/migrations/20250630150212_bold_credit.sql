@@ -1,12 +1,6 @@
-/*
-  # Seed Data for Stock Screening System
-  
-  This file contains initial data to populate the database with:
-  1. Reference data (countries, currencies, exchanges, sectors)
-  2. Sample companies and securities
-  3. System configuration data
-  4. Default user roles and permissions
-*/
+-- =====================================================
+-- SEED DATA FOR STOCK SCREENING SYSTEM
+-- =====================================================
 
 -- Insert countries
 INSERT INTO countries (code, name, alpha_2, region, currency_code) VALUES
@@ -190,15 +184,14 @@ INSERT INTO securities (
  3170000000)
 ON CONFLICT (symbol, exchange_id) DO NOTHING;
 
--- Insert market data sources
-INSERT INTO market_data_sources (name, description, api_endpoint, api_key_required, rate_limit_per_minute) VALUES
-('Alpha Vantage', 'Real-time and historical stock market data', 'https://www.alphavantage.co/query', true, 5),
-('Yahoo Finance', 'Free stock market data', 'https://query1.finance.yahoo.com/v8/finance/chart', false, 2000),
-('Polygon.io', 'Real-time and historical market data', 'https://api.polygon.io/v2', true, 1000),
-('IEX Cloud', 'Financial data infrastructure', 'https://cloud.iexapis.com/stable', true, 100),
-('Quandl', 'Financial and economic data', 'https://www.quandl.com/api/v3', true, 300),
-('Finnhub', 'Real-time stock market data', 'https://finnhub.io/api/v1', true, 60)
-ON CONFLICT (name) DO NOTHING;
+-- Insert legacy symbols for backward compatibility
+INSERT INTO symbols (symbol, yticker, name, exchange, industry, sector, market_cap) VALUES
+('AAPL', 'AAPL', 'Apple Inc.', 'NASDAQ', 'Hardware', 'Technology', 3000000000000),
+('MSFT', 'MSFT', 'Microsoft Corporation', 'NASDAQ', 'Software', 'Technology', 2800000000000),
+('GOOGL', 'GOOGL', 'Alphabet Inc.', 'NASDAQ', 'Internet Services', 'Technology', 1700000000000),
+('AMZN', 'AMZN', 'Amazon.com Inc.', 'NASDAQ', 'Retail', 'Consumer Discretionary', 1500000000000),
+('TSLA', 'TSLA', 'Tesla Inc.', 'NASDAQ', 'Automotive', 'Consumer Discretionary', 800000000000)
+ON CONFLICT (symbol) DO NOTHING;
 
 -- Insert default roles
 INSERT INTO roles (name, description, is_system_role) VALUES
@@ -236,20 +229,6 @@ INSERT INTO permissions (name, description, resource, action) VALUES
 ('admin.system', 'System administration', 'system', 'admin')
 ON CONFLICT (name) DO NOTHING;
 
--- Insert indicator definitions
-INSERT INTO indicator_definitions (code, name, description, category, data_type) VALUES
-('SMA', 'Simple Moving Average', 'Simple moving average of closing prices', 'TREND', 'PRICE'),
-('EMA', 'Exponential Moving Average', 'Exponential moving average of closing prices', 'TREND', 'PRICE'),
-('RSI', 'Relative Strength Index', 'Momentum oscillator measuring speed and magnitude of price changes', 'MOMENTUM', 'PERCENTAGE'),
-('MACD', 'Moving Average Convergence Divergence', 'Trend-following momentum indicator', 'MOMENTUM', 'PRICE'),
-('BB', 'Bollinger Bands', 'Volatility bands around moving average', 'VOLATILITY', 'PRICE'),
-('STOCH', 'Stochastic Oscillator', 'Momentum indicator comparing closing price to price range', 'MOMENTUM', 'PERCENTAGE'),
-('ATR', 'Average True Range', 'Volatility indicator measuring price range', 'VOLATILITY', 'PRICE'),
-('ADX', 'Average Directional Index', 'Trend strength indicator', 'TREND', 'INDEX'),
-('OBV', 'On Balance Volume', 'Volume-based momentum indicator', 'VOLUME', 'INDEX'),
-('VWAP', 'Volume Weighted Average Price', 'Average price weighted by volume', 'PRICE', 'PRICE')
-ON CONFLICT (code) DO NOTHING;
-
 -- Insert pattern types
 INSERT INTO pattern_types (code, name, category, description, bullish_probability, bearish_probability, min_periods, max_periods) VALUES
 ('HEAD_SHOULDERS', 'Head and Shoulders', 'REVERSAL', 'Bearish reversal pattern', 25.0, 75.0, 15, 50),
@@ -264,115 +243,57 @@ INSERT INTO pattern_types (code, name, category, description, bullish_probabilit
 ('CUP_HANDLE', 'Cup and Handle', 'CONTINUATION', 'Bullish continuation pattern', 80.0, 20.0, 20, 60)
 ON CONFLICT (code) DO NOTHING;
 
--- Insert event types
-INSERT INTO event_types (code, name, category, description, impact_level) VALUES
-('EARNINGS', 'Earnings Release', 'EARNINGS', 'Quarterly earnings announcement', 'HIGH'),
-('DIVIDEND', 'Dividend Declaration', 'CORPORATE_ACTION', 'Dividend payment announcement', 'MEDIUM'),
-('SPLIT', 'Stock Split', 'CORPORATE_ACTION', 'Stock split announcement', 'MEDIUM'),
-('MERGER', 'Merger & Acquisition', 'CORPORATE_ACTION', 'Merger or acquisition announcement', 'HIGH'),
-('SPINOFF', 'Spinoff', 'CORPORATE_ACTION', 'Corporate spinoff', 'MEDIUM'),
-('GUIDANCE', 'Guidance Update', 'EARNINGS', 'Management guidance update', 'HIGH'),
-('FDA_APPROVAL', 'FDA Approval', 'REGULATORY', 'FDA drug approval', 'HIGH'),
-('PRODUCT_LAUNCH', 'Product Launch', 'CORPORATE_ACTION', 'New product launch', 'MEDIUM'),
-('EXECUTIVE_CHANGE', 'Executive Change', 'CORPORATE_ACTION', 'Executive appointment or departure', 'MEDIUM'),
-('LAWSUIT', 'Legal Action', 'REGULATORY', 'Legal proceedings', 'MEDIUM')
-ON CONFLICT (code) DO NOTHING;
+-- Insert sample strategies
+INSERT INTO strategies (name, description, parameters) VALUES
+('Simple Moving Average Crossover', 'Buy when short MA crosses above long MA, sell when it crosses below', 
+ '{"short_period": 20, "long_period": 50, "stop_loss": 0.05, "take_profit": 0.15}'),
+('RSI Mean Reversion', 'Buy when RSI is oversold, sell when overbought', 
+ '{"rsi_period": 14, "oversold": 30, "overbought": 70, "stop_loss": 0.03}'),
+('Bollinger Bands Breakout', 'Buy on upper band breakout, sell on lower band breakdown', 
+ '{"period": 20, "std_dev": 2, "stop_loss": 0.04, "take_profit": 0.12}'),
+('Momentum Strategy', 'Buy stocks with strong momentum, sell when momentum weakens', 
+ '{"lookback_period": 10, "momentum_threshold": 0.05, "stop_loss": 0.06}'),
+('Value Strategy', 'Buy undervalued stocks based on fundamental metrics', 
+ '{"pe_max": 15, "pb_max": 2, "debt_to_equity_max": 0.5, "roe_min": 0.15}')
+ON CONFLICT (name) DO NOTHING;
 
--- Insert news sources
-INSERT INTO news_sources (code, name, website, credibility_score, bias_score) VALUES
-('REUTERS', 'Reuters', 'https://www.reuters.com', 0.95, 0.0),
-('BLOOMBERG', 'Bloomberg', 'https://www.bloomberg.com', 0.92, 0.1),
-('WSJ', 'Wall Street Journal', 'https://www.wsj.com', 0.90, 0.2),
-('CNBC', 'CNBC', 'https://www.cnbc.com', 0.85, 0.1),
-('MARKETWATCH', 'MarketWatch', 'https://www.marketwatch.com', 0.82, 0.0),
-('YAHOO_FINANCE', 'Yahoo Finance', 'https://finance.yahoo.com', 0.80, 0.0),
-('SEEKING_ALPHA', 'Seeking Alpha', 'https://seekingalpha.com', 0.75, 0.0),
-('MOTLEY_FOOL', 'The Motley Fool', 'https://www.fool.com', 0.70, 0.1),
-('BENZINGA', 'Benzinga', 'https://www.benzinga.com', 0.72, 0.0),
-('ZACKS', 'Zacks Investment Research', 'https://www.zacks.com', 0.78, 0.0)
-ON CONFLICT (code) DO NOTHING;
+-- Insert sample screens
+INSERT INTO screens (name, description, criteria) VALUES
+('High Volume Breakout', 'Stocks breaking out with high volume', 
+ '{"volume_ratio": {"min": 2.0}, "price_change_1d": {"min": 0.05}, "rsi_14": {"max": 80}}'),
+('Oversold Value Stocks', 'Undervalued stocks that are oversold', 
+ '{"rsi_14": {"max": 30}, "pe_ratio": {"max": 15}, "pb_ratio": {"max": 2}}'),
+('Momentum Stocks', 'Stocks with strong price momentum', 
+ '{"price_change_1w": {"min": 0.10}, "price_change_1m": {"min": 0.20}, "volume_ratio": {"min": 1.5}}'),
+('Dividend Aristocrats', 'High-quality dividend paying stocks', 
+ '{"dividend_yield": {"min": 0.02}, "roe": {"min": 0.15}, "debt_to_equity": {"max": 0.5}}'),
+('Small Cap Growth', 'Small cap stocks with growth potential', 
+ '{"market_cap": {"min": 300000000, "max": 2000000000}, "revenue_growth": {"min": 0.15}}'
+)
+ON CONFLICT (name) DO NOTHING;
 
--- Insert news categories
-INSERT INTO news_categories (code, name, description) VALUES
-('EARNINGS', 'Earnings', 'Earnings reports and related news'),
-('MERGERS', 'Mergers & Acquisitions', 'M&A activity and rumors'),
-('ANALYST', 'Analyst Coverage', 'Analyst ratings and price targets'),
-('PRODUCT', 'Product News', 'New product launches and updates'),
-('REGULATORY', 'Regulatory', 'Regulatory approvals and compliance'),
-('EXECUTIVE', 'Executive News', 'Executive appointments and departures'),
-('FINANCIAL', 'Financial Results', 'Financial performance and metrics'),
-('MARKET', 'Market News', 'General market and sector news'),
-('ECONOMIC', 'Economic News', 'Economic indicators and policy'),
-('TECHNOLOGY', 'Technology', 'Technology developments and innovations')
-ON CONFLICT (code) DO NOTHING;
+-- Insert sample watchlists
+INSERT INTO watchlists (name, description, created_by, is_public) VALUES
+('Tech Giants', 'Major technology companies', 'system', true),
+('Dividend Stocks', 'High dividend yield stocks', 'system', true),
+('Growth Stocks', 'High growth potential stocks', 'system', true),
+('Value Picks', 'Undervalued stock opportunities', 'system', false),
+('Momentum Plays', 'Stocks with strong momentum', 'system', false)
+ON CONFLICT DO NOTHING;
 
--- Insert stakeholder types
-INSERT INTO stakeholder_types (code, name, category, description) VALUES
-('INDIVIDUAL', 'Individual Investor', 'INDIVIDUAL', 'Individual retail investor'),
-('MUTUAL_FUND', 'Mutual Fund', 'INSTITUTIONAL', 'Mutual fund company'),
-('HEDGE_FUND', 'Hedge Fund', 'INSTITUTIONAL', 'Hedge fund'),
-('PENSION_FUND', 'Pension Fund', 'INSTITUTIONAL', 'Pension fund'),
-('INSURANCE', 'Insurance Company', 'INSTITUTIONAL', 'Insurance company'),
-('BANK', 'Bank', 'INSTITUTIONAL', 'Commercial or investment bank'),
-('SOVEREIGN', 'Sovereign Wealth Fund', 'GOVERNMENT', 'Government investment fund'),
-('ENDOWMENT', 'Endowment', 'INSTITUTIONAL', 'University or foundation endowment'),
-('FAMILY_OFFICE', 'Family Office', 'INSTITUTIONAL', 'Family office'),
-('INSIDER', 'Corporate Insider', 'INSIDER', 'Company executive or board member')
-ON CONFLICT (code) DO NOTHING;
-
--- Insert economic indicators
-INSERT INTO economic_indicators (code, name, description, category, frequency, unit, country_id) VALUES
-('GDP', 'Gross Domestic Product', 'Total economic output', 'GDP', 'QUARTERLY', 'Billions USD', (SELECT id FROM countries WHERE code = 'USA')),
-('CPI', 'Consumer Price Index', 'Inflation measure', 'INFLATION', 'MONTHLY', 'Index', (SELECT id FROM countries WHERE code = 'USA')),
-('UNEMPLOYMENT', 'Unemployment Rate', 'Percentage of unemployed workers', 'EMPLOYMENT', 'MONTHLY', 'Percentage', (SELECT id FROM countries WHERE code = 'USA')),
-('FED_RATE', 'Federal Funds Rate', 'Federal Reserve interest rate', 'INTEREST_RATES', 'IRREGULAR', 'Percentage', (SELECT id FROM countries WHERE code = 'USA')),
-('RETAIL_SALES', 'Retail Sales', 'Consumer spending measure', 'CONSUMPTION', 'MONTHLY', 'Billions USD', (SELECT id FROM countries WHERE code = 'USA')),
-('INDUSTRIAL_PRODUCTION', 'Industrial Production', 'Manufacturing output', 'PRODUCTION', 'MONTHLY', 'Index', (SELECT id FROM countries WHERE code = 'USA')),
-('HOUSING_STARTS', 'Housing Starts', 'New residential construction', 'HOUSING', 'MONTHLY', 'Thousands', (SELECT id FROM countries WHERE code = 'USA')),
-('TRADE_BALANCE', 'Trade Balance', 'Exports minus imports', 'TRADE', 'MONTHLY', 'Billions USD', (SELECT id FROM countries WHERE code = 'USA')),
-('CONSUMER_CONFIDENCE', 'Consumer Confidence', 'Consumer sentiment index', 'SENTIMENT', 'MONTHLY', 'Index', (SELECT id FROM countries WHERE code = 'USA')),
-('PMI', 'Purchasing Managers Index', 'Manufacturing activity index', 'MANUFACTURING', 'MONTHLY', 'Index', (SELECT id FROM countries WHERE code = 'USA'))
-ON CONFLICT (code) DO NOTHING;
-
--- Insert screen criteria
-INSERT INTO screen_criteria (code, name, description, category, data_type, operator_types) VALUES
-('MARKET_CAP', 'Market Capitalization', 'Total market value of company shares', 'FUNDAMENTAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('PE_RATIO', 'Price-to-Earnings Ratio', 'Stock price divided by earnings per share', 'FUNDAMENTAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('PB_RATIO', 'Price-to-Book Ratio', 'Stock price divided by book value per share', 'FUNDAMENTAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('DIVIDEND_YIELD', 'Dividend Yield', 'Annual dividend divided by stock price', 'FUNDAMENTAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('ROE', 'Return on Equity', 'Net income divided by shareholders equity', 'FUNDAMENTAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('DEBT_TO_EQUITY', 'Debt-to-Equity Ratio', 'Total debt divided by shareholders equity', 'FUNDAMENTAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('REVENUE_GROWTH', 'Revenue Growth', 'Year-over-year revenue growth rate', 'FUNDAMENTAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('RSI_14', 'RSI (14-day)', 'Relative Strength Index over 14 days', 'TECHNICAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('PRICE_VS_SMA50', 'Price vs SMA(50)', 'Current price relative to 50-day moving average', 'TECHNICAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN']),
-('VOLUME_RATIO', 'Volume Ratio', 'Current volume relative to average volume', 'TECHNICAL', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN']),
-('PRICE_CHANGE_1D', '1-Day Price Change', 'Price change over 1 day', 'PRICE', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('PRICE_CHANGE_1W', '1-Week Price Change', 'Price change over 1 week', 'PRICE', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('PRICE_CHANGE_1M', '1-Month Price Change', 'Price change over 1 month', 'PRICE', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('AVG_VOLUME', 'Average Volume', 'Average daily trading volume', 'VOLUME', 'NUMERIC', ARRAY['GREATER_THAN', 'LESS_THAN', 'BETWEEN']),
-('SECTOR', 'Sector', 'Company sector classification', 'FUNDAMENTAL', 'STRING', ARRAY['EQUALS', 'IN', 'NOT_IN']),
-('EXCHANGE', 'Exchange', 'Stock exchange listing', 'FUNDAMENTAL', 'STRING', ARRAY['EQUALS', 'IN', 'NOT_IN'])
-ON CONFLICT (code) DO NOTHING;
-
--- Insert ratio definitions
-INSERT INTO ratio_definitions (code, name, category, description, formula) VALUES
-('GROSS_MARGIN', 'Gross Margin', 'PROFITABILITY', 'Gross profit as percentage of revenue', '(Revenue - COGS) / Revenue * 100'),
-('OPERATING_MARGIN', 'Operating Margin', 'PROFITABILITY', 'Operating income as percentage of revenue', 'Operating Income / Revenue * 100'),
-('NET_MARGIN', 'Net Margin', 'PROFITABILITY', 'Net income as percentage of revenue', 'Net Income / Revenue * 100'),
-('ROA', 'Return on Assets', 'PROFITABILITY', 'Net income as percentage of total assets', 'Net Income / Total Assets * 100'),
-('ROE', 'Return on Equity', 'PROFITABILITY', 'Net income as percentage of shareholders equity', 'Net Income / Shareholders Equity * 100'),
-('CURRENT_RATIO', 'Current Ratio', 'LIQUIDITY', 'Current assets divided by current liabilities', 'Current Assets / Current Liabilities'),
-('QUICK_RATIO', 'Quick Ratio', 'LIQUIDITY', 'Quick assets divided by current liabilities', '(Current Assets - Inventory) / Current Liabilities'),
-('DEBT_TO_EQUITY', 'Debt-to-Equity', 'LEVERAGE', 'Total debt divided by shareholders equity', 'Total Debt / Shareholders Equity'),
-('INTEREST_COVERAGE', 'Interest Coverage', 'LEVERAGE', 'Operating income divided by interest expense', 'Operating Income / Interest Expense'),
-('ASSET_TURNOVER', 'Asset Turnover', 'EFFICIENCY', 'Revenue divided by average total assets', 'Revenue / Average Total Assets'),
-('INVENTORY_TURNOVER', 'Inventory Turnover', 'EFFICIENCY', 'Cost of goods sold divided by average inventory', 'COGS / Average Inventory'),
-('PE_RATIO', 'Price-to-Earnings', 'VALUATION', 'Stock price divided by earnings per share', 'Stock Price / EPS'),
-('PB_RATIO', 'Price-to-Book', 'VALUATION', 'Stock price divided by book value per share', 'Stock Price / Book Value per Share'),
-('PS_RATIO', 'Price-to-Sales', 'VALUATION', 'Market cap divided by revenue', 'Market Cap / Revenue'),
-('EV_REVENUE', 'EV/Revenue', 'VALUATION', 'Enterprise value divided by revenue', 'Enterprise Value / Revenue'),
-('EV_EBITDA', 'EV/EBITDA', 'VALUATION', 'Enterprise value divided by EBITDA', 'Enterprise Value / EBITDA')
-ON CONFLICT (code) DO NOTHING;
+-- Insert watchlist symbols
+INSERT INTO watchlist_symbols (watchlist_id, security_id, notes) VALUES
+((SELECT id FROM watchlists WHERE name = 'Tech Giants'), 
+ (SELECT id FROM securities WHERE symbol = 'AAPL'), 'Leading smartphone manufacturer'),
+((SELECT id FROM watchlists WHERE name = 'Tech Giants'), 
+ (SELECT id FROM securities WHERE symbol = 'MSFT'), 'Cloud computing leader'),
+((SELECT id FROM watchlists WHERE name = 'Tech Giants'), 
+ (SELECT id FROM securities WHERE symbol = 'GOOGL'), 'Search and advertising giant'),
+((SELECT id FROM watchlists WHERE name = 'Growth Stocks'), 
+ (SELECT id FROM securities WHERE symbol = 'TSLA'), 'Electric vehicle pioneer'),
+((SELECT id FROM watchlists WHERE name = 'Growth Stocks'), 
+ (SELECT id FROM securities WHERE symbol = 'AMZN'), 'E-commerce and cloud leader')
+ON CONFLICT (watchlist_id, security_id) DO NOTHING;
 
 -- Update table statistics
 ANALYZE countries;
@@ -383,15 +304,11 @@ ANALYZE industries;
 ANALYZE security_types;
 ANALYZE companies;
 ANALYZE securities;
-ANALYZE market_data_sources;
+ANALYZE symbols;
 ANALYZE roles;
 ANALYZE permissions;
-ANALYZE indicator_definitions;
 ANALYZE pattern_types;
-ANALYZE event_types;
-ANALYZE news_sources;
-ANALYZE news_categories;
-ANALYZE stakeholder_types;
-ANALYZE economic_indicators;
-ANALYZE screen_criteria;
-ANALYZE ratio_definitions;
+ANALYZE strategies;
+ANALYZE screens;
+ANALYZE watchlists;
+ANALYZE watchlist_symbols;
