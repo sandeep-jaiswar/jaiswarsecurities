@@ -1,37 +1,34 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: stock_postgres_local
+  # ClickHouse Database
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8-alpine
+    container_name: stock_clickhouse_local
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-stockuser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stockpass123}
-      POSTGRES_DB: ${POSTGRES_DB:-stockdb}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-stockdb}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-stockuser}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-stockpass123}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     volumes:
-      - postgres_data_local:/var/lib/postgresql/data
-      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+      - clickhouse_data_local:/var/lib/clickhouse
+      - ./database/clickhouse/init:/docker-entrypoint-initdb.d:ro
+      - ./database/clickhouse/config:/etc/clickhouse-server/config.d:ro
     ports:
-      - "5432:5432"
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native interface
     networks:
       - stock_network_local
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stockuser} -d ${POSTGRES_DB:-stockdb}"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: >
-      postgres 
-      -c shared_preload_libraries=pg_stat_statements
-      -c pg_stat_statements.track=all
-      -c max_connections=200
-      -c shared_buffers=256MB
-      -c effective_cache_size=1GB
-      -c work_mem=4MB
-      -c maintenance_work_mem=64MB
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
 
   # Redis for Caching
   redis:
@@ -153,15 +150,9 @@ services:
     container_name: stock_n8n_local
     restart: unless-stopped
     depends_on:
-      postgres:
+      clickhouse:
         condition: service_healthy
     environment:
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-stockdb}
-      - DB_POSTGRESDB_USER=${POSTGRES_USER:-stockuser}
-      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-stockpass123}
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=admin123
@@ -186,12 +177,15 @@ services:
     container_name: stock_api_gateway_local
     restart: unless-stopped
     depends_on:
-      postgres:
+      clickhouse:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      - POSTGRES_URL=postgresql://${POSTGRES_USER:-stockuser}:${POSTGRES_PASSWORD:-stockpass123}@postgres:5432/${POSTGRES_DB:-stockdb}
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-stockuser}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-stockpass123}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-stockdb}
       - REDIS_URL=redis://redis:6379
       - API_PORT=3000
       - ALLOWED_ORIGINS=http://localhost:3001,http://localhost:5678
@@ -220,14 +214,17 @@ services:
     container_name: stock_data_ingestion_local
     restart: unless-stopped
     depends_on:
-      postgres:
+      clickhouse:
         condition: service_healthy
       kafka:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      - POSTGRES_URL=postgresql://${POSTGRES_USER:-stockuser}:${POSTGRES_PASSWORD:-stockpass123}@postgres:5432/${POSTGRES_DB:-stockdb}
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-stockuser}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-stockpass123}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-stockdb}
       - KAFKA_BROKERS=kafka:9092
       - REDIS_URL=redis://redis:6379
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-demo}
@@ -257,12 +254,15 @@ services:
     container_name: stock_backtesting_local
     restart: unless-stopped
     depends_on:
-      postgres:
+      clickhouse:
         condition: service_healthy
       kafka:
         condition: service_healthy
     environment:
-      - POSTGRES_URL=postgresql://${POSTGRES_USER:-stockuser}:${POSTGRES_PASSWORD:-stockpass123}@postgres:5432/${POSTGRES_DB:-stockdb}
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-stockuser}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-stockpass123}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-stockdb}
       - KAFKA_BROKERS=kafka:9092
       - BACKTEST_START_DATE=${BACKTEST_START_DATE:-2023-01-01}
       - BACKTEST_END_DATE=${BACKTEST_END_DATE:-2023-12-31}
@@ -313,7 +313,7 @@ services:
       retries: 3
 
 volumes:
-  postgres_data_local:
+  clickhouse_data_local:
     driver: local
   zookeeper_data_local:
     driver: local

@@ -1,5 +1,5 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { createClient } = require('@clickhouse/client');
 const { Kafka } = require('kafkajs');
 const axios = require('axios');
 const cron = require('node-cron');
@@ -22,12 +22,16 @@ const logger = winston.createLogger({
   ]
 });
 
-// Initialize database connection
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+// Initialize ClickHouse connection
+const clickhouse = createClient({
+  url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
+  username: process.env.CLICKHOUSE_USER || 'stockuser',
+  password: process.env.CLICKHOUSE_PASSWORD || 'stockpass123',
+  database: process.env.CLICKHOUSE_DATABASE || 'stockdb',
+  clickhouse_settings: {
+    async_insert: 1,
+    wait_for_async_insert: 1,
+  },
 });
 
 // Initialize Kafka
@@ -78,35 +82,20 @@ app.post('/ingest/ohlcv', async (req, res) => {
 
 // Symbol ingestion function
 async function ingestSymbols(symbols) {
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    
-    for (const symbol of symbols) {
-      const query = `
-        INSERT INTO symbols (symbol, yticker, name, exchange, industry, sector, market_cap)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (symbol) DO UPDATE SET
-          name = EXCLUDED.name,
-          exchange = EXCLUDED.exchange,
-          industry = EXCLUDED.industry,
-          sector = EXCLUDED.sector,
-          market_cap = EXCLUDED.market_cap,
-          updated_at = NOW()
-      `;
-      
-      await client.query(query, [
-        symbol.symbol,
-        symbol.yticker || symbol.symbol,
-        symbol.name,
-        symbol.exchange,
-        symbol.industry,
-        symbol.sector,
-        symbol.market_cap
-      ]);
-    }
-    
-    await client.query('COMMIT');
+    const values = symbols.map(symbol => ({
+      id: Date.now() + Math.random(), // Simple ID generation
+      company_id: symbol.company_id || 0,
+      symbol: symbol.symbol,
+      name: symbol.name,
+      is_active: 1
+    }));
+
+    await clickhouse.insert({
+      table: 'securities',
+      values: values
+    });
+
     logger.info(`Ingested ${symbols.length} symbols`);
     
     // Send message to Kafka
@@ -119,80 +108,63 @@ async function ingestSymbols(symbols) {
     });
     
   } catch (error) {
-    await client.query('ROLLBACK');
+    logger.error('Error in ingestSymbols:', error);
     throw error;
-  } finally {
-    client.release();
   }
 }
 
 // OHLCV ingestion function
 async function ingestOHLCV(symbol, startDate, endDate) {
   try {
-    // Get symbol ID
-    const symbolResult = await pool.query('SELECT id FROM symbols WHERE symbol = $1', [symbol]);
-    if (symbolResult.rows.length === 0) {
+    // Get security ID
+    const securityResult = await clickhouse.query({
+      query: 'SELECT id FROM securities WHERE symbol = {symbol:String}',
+      query_params: { symbol }
+    });
+    
+    const securities = await securityResult.json();
+    if (securities.data.length === 0) {
       throw new Error(`Symbol ${symbol} not found`);
     }
-    const symbolId = symbolResult.rows[0].id;
+    const securityId = securities.data[0].id;
     
-    // Fetch data from external API (Alpha Vantage example)
+    // Fetch data from external API
     const data = await fetchOHLCVData(symbol, startDate, endDate);
     
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      for (const record of data) {
-        const query = `
-          INSERT INTO ohlcv (symbol_id, trade_date, open_price, high_price, low_price, close_price, adjusted_close, volume)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (symbol_id, trade_date) DO UPDATE SET
-            open_price = EXCLUDED.open_price,
-            high_price = EXCLUDED.high_price,
-            low_price = EXCLUDED.low_price,
-            close_price = EXCLUDED.close_price,
-            adjusted_close = EXCLUDED.adjusted_close,
-            volume = EXCLUDED.volume
-        `;
-        
-        await client.query(query, [
-          symbolId,
-          record.date,
-          record.open,
-          record.high,
-          record.low,
-          record.close,
-          record.adjusted_close,
-          record.volume
-        ]);
-      }
-      
-      await client.query('COMMIT');
-      logger.info(`Ingested ${data.length} OHLCV records for ${symbol}`);
-      
-      // Send message to Kafka for indicator calculation
-      await producer.send({
-        topic: 'ohlcv-ingested',
-        messages: [{
-          key: symbol,
-          value: JSON.stringify({ 
-            symbol, 
-            symbolId, 
-            recordCount: data.length, 
-            startDate, 
-            endDate,
-            timestamp: new Date() 
-          })
-        }]
-      });
-      
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    const values = data.map(record => ({
+      id: Date.now() + Math.random(),
+      security_id: securityId,
+      trade_date: record.date,
+      open_price: record.open,
+      high_price: record.high,
+      low_price: record.low,
+      close_price: record.close,
+      adjusted_close: record.adjusted_close,
+      volume: record.volume
+    }));
+
+    await clickhouse.insert({
+      table: 'ohlcv_daily',
+      values: values
+    });
+    
+    logger.info(`Ingested ${data.length} OHLCV records for ${symbol}`);
+    
+    // Send message to Kafka for indicator calculation
+    await producer.send({
+      topic: 'ohlcv-ingested',
+      messages: [{
+        key: symbol,
+        value: JSON.stringify({ 
+          symbol, 
+          securityId, 
+          recordCount: data.length, 
+          startDate, 
+          endDate,
+          timestamp: new Date() 
+        })
+      }]
+    });
     
   } catch (error) {
     logger.error(`Error ingesting OHLCV for ${symbol}:`, error);
@@ -257,8 +229,12 @@ cron.schedule('0 18 * * 1-5', async () => {
   logger.info('Starting daily data ingestion job');
   try {
     // Get all active symbols
-    const result = await pool.query('SELECT symbol FROM symbols WHERE is_active = true');
-    const symbols = result.rows.map(row => row.symbol);
+    const result = await clickhouse.query({
+      query: 'SELECT symbol FROM securities WHERE is_active = 1'
+    });
+    
+    const securities = await result.json();
+    const symbols = securities.data.map(row => row.symbol);
     
     // Ingest data for each symbol
     for (const symbol of symbols) {
@@ -313,9 +289,9 @@ async function initialize() {
     await startKafkaConsumer();
     logger.info('Connected to Kafka');
     
-    // Test database connection
-    await pool.query('SELECT NOW()');
-    logger.info('Connected to PostgreSQL');
+    // Test ClickHouse connection
+    await clickhouse.query({ query: 'SELECT 1' });
+    logger.info('Connected to ClickHouse');
     
     // Start Express server
     const port = process.env.PORT || 3001;
@@ -335,7 +311,7 @@ process.on('SIGTERM', async () => {
   await producer.disconnect();
   await consumer.disconnect();
   await redis.disconnect();
-  await pool.end();
+  await clickhouse.close();
   process.exit(0);
 });
 
