@@ -1,9 +1,6 @@
 'use client'
 
 import { ReactNode } from 'react'
-import { TerminalHeader } from './TerminalHeader'
-import { TerminalSidebar } from './TerminalSidebar'
-import { TerminalFooter } from './TerminalFooter'
 
 interface TerminalLayoutProps {
   children: ReactNode

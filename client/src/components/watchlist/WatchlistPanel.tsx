@@ -76,7 +76,9 @@ export function WatchlistPanel() {
                     <div>
                       <div className="font-medium text-terminal-text">{symbol}</div>
                       <div className="text-terminal-muted text-xs truncate">
-                        {data.name || 'Company Name'}
+                        // TODO:// Fix type error
+                        {/* {data?.name ?? 'Company Name'} */}
+                        {'Company Name'}
                       </div>
                     </div>
                     <div className="text-right">
