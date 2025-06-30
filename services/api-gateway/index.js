@@ -15,7 +15,14 @@ const http = require('http');
 require('dotenv').config();
 
 // Import route modules
+const marketRoutes = require('./routes/market');
+const analyticsRoutes = require('./routes/analytics');
+const researchRoutes = require('./routes/research');
+const portfolioRoutes = require('./routes/portfolio');
+const screeningRoutes = require('./routes/screening');
+const backtestingRoutes = require('./routes/backtesting');
 const tradingRoutes = require('./routes/trading');
+const economicRoutes = require('./routes/economic');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -153,7 +160,8 @@ app.get('/', (req, res) => {
       research: '/api/research',
       trading: '/api/trading',
       screening: '/api/screening',
-      backtesting: '/api/backtesting'
+      backtesting: '/api/backtesting',
+      economic: '/api/economic'
     }
   });
 });
@@ -194,7 +202,14 @@ app.get('/health', async (req, res) => {
 });
 
 // Mount route modules
+app.use('/api/market', marketRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/research', researchRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/screening', screeningRoutes);
+app.use('/api/backtesting', backtestingRoutes);
 app.use('/api/trading', tradingRoutes);
+app.use('/api/economic', economicRoutes);
 
 // Authentication endpoints
 app.post('/api/auth/register', async (req, res) => {
@@ -220,7 +235,8 @@ app.post('/api/auth/register', async (req, res) => {
       query_params: { username, email }
     });
 
-    if (existingUser.rows > 0) {
+    const userData = await existingUser.json();
+    if (userData.data.length > 0) {
       return res.status(409).json({ error: 'Username or email already exists' });
     }
 
@@ -314,161 +330,6 @@ app.post('/api/auth/login', async (req, res) => {
 
   } catch (error) {
     logger.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Market Data endpoints
-app.get('/api/market/symbols', async (req, res) => {
-  try {
-    const { search, sector, exchange, limit = 100, offset = 0 } = req.query;
-    
-    let query = `
-      SELECT s.id, s.symbol, s.name, c.name as company_name, s.is_active
-      FROM securities s
-      LEFT JOIN companies c ON s.company_id = c.id
-      WHERE s.is_active = 1
-    `;
-    
-    const queryParams = {};
-    
-    if (search) {
-      query += ` AND (s.symbol ILIKE {search:String} OR s.name ILIKE {search:String})`;
-      queryParams.search = `%${search}%`;
-    }
-    
-    if (sector) {
-      query += ` AND c.sector_id = {sector:UInt32}`;
-      queryParams.sector = parseInt(sector);
-    }
-    
-    query += ` ORDER BY s.symbol LIMIT {limit:UInt32} OFFSET {offset:UInt32}`;
-    queryParams.limit = parseInt(limit);
-    queryParams.offset = parseInt(offset);
-    
-    const result = await clickhouse.query({
-      query,
-      query_params: queryParams
-    });
-    
-    const data = await result.json();
-    res.json(data.data);
-  } catch (error) {
-    logger.error('Error fetching symbols:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/market/symbols/:symbol/quote', async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    
-    // Check cache first
-    const cacheKey = `quote:${symbol}`;
-    let cachedData = null;
-    
-    try {
-      if (redis && redis.isOpen) {
-        cachedData = await redis.get(cacheKey);
-      }
-    } catch (redisError) {
-      logger.warn('Redis cache check failed:', redisError.message);
-    }
-    
-    if (cachedData) {
-      return res.json(JSON.parse(cachedData));
-    }
-    
-    const result = await clickhouse.query({
-      query: `
-        SELECT 
-          s.symbol,
-          s.name,
-          o.open_price,
-          o.high_price,
-          o.low_price,
-          o.close_price,
-          o.volume,
-          o.trade_date,
-          (o.close_price - LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date)) as price_change,
-          ((o.close_price - LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date)) / LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date)) * 100 as price_change_percent
-        FROM securities s
-        JOIN ohlcv_daily o ON s.id = o.security_id
-        WHERE s.symbol = {symbol:String}
-        ORDER BY o.trade_date DESC
-        LIMIT 1
-      `,
-      query_params: { symbol: symbol.toUpperCase() }
-    });
-    
-    const data = await result.json();
-    if (data.data.length === 0) {
-      return res.status(404).json({ error: 'Symbol not found' });
-    }
-    
-    const quote = data.data[0];
-    
-    // Cache for 30 seconds
-    try {
-      if (redis && redis.isOpen) {
-        await redis.setEx(cacheKey, 30, JSON.stringify(quote));
-      }
-    } catch (redisError) {
-      logger.warn('Redis cache set failed:', redisError.message);
-    }
-    
-    res.json(quote);
-  } catch (error) {
-    logger.error('Error fetching quote:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Analytics endpoints
-app.get('/api/analytics/market-overview', async (req, res) => {
-  try {
-    const cacheKey = 'market-overview';
-    let cachedData = null;
-    
-    try {
-      if (redis && redis.isOpen) {
-        cachedData = await redis.get(cacheKey);
-      }
-    } catch (redisError) {
-      logger.warn('Redis cache check failed:', redisError.message);
-    }
-    
-    if (cachedData) {
-      return res.json(JSON.parse(cachedData));
-    }
-    
-    // Mock market overview data
-    const overview = {
-      total_symbols: 5000,
-      active_symbols: 4850,
-      records_today: 4850,
-      total_volume: 2500000000,
-      market_status: 'OPEN',
-      major_indices: {
-        SPY: { price: 450.25, change: 1.25, changePercent: 0.28 },
-        QQQ: { price: 385.50, change: 2.15, changePercent: 0.56 },
-        DIA: { price: 340.75, change: 0.85, changePercent: 0.25 }
-      },
-      last_updated: new Date().toISOString()
-    };
-    
-    // Cache for 10 minutes
-    try {
-      if (redis && redis.isOpen) {
-        await redis.setEx(cacheKey, 600, JSON.stringify(overview));
-      }
-    } catch (redisError) {
-      logger.warn('Redis cache set failed:', redisError.message);
-    }
-    
-    res.json(overview);
-  } catch (error) {
-    logger.error('Error fetching market overview:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
