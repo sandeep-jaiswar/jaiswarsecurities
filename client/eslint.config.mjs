@@ -1,54 +1,62 @@
-import * as fs from "fs"
 
-// https://github.com/francoismassart/eslint-plugin-tailwindcss/pull/381
-// import eslintPluginTailwindcss from "eslint-plugin-tailwindcss"
-import eslintPluginImport from "eslint-plugin-import"
-import eslintPluginNext from "@next/eslint-plugin-next"
-import eslintPluginStorybook from "eslint-plugin-storybook"
-import typescriptEslint from "typescript-eslint"
+import globals from "globals";
+import tseslint from "typescript-eslint";
+import pluginImport from "eslint-plugin-import";
+import nextPlugin from "@next/eslint-plugin-next";
 
-const eslintIgnore = [
-  ".git/",
-  ".next/",
-  "node_modules/",
-  "dist/",
-  "build/",
-  "coverage/",
-  "*.min.js",
-  "*.config.js",
-  "*.d.ts",
-]
-
-const config = typescriptEslint.config(
+export default tseslint.config(
   {
-    ignores: eslintIgnore,
+    ignores: [
+      ".git/",
+      ".next/",
+      "node_modules/",
+      "dist/",
+      "build/",
+      "coverage/",
+      "*.min.js",
+      "*.config.js",
+      "*.d.ts",
+    ],
   },
-  ...eslintPluginStorybook.configs["flat/recommended"],
-  //  https://github.com/francoismassart/eslint-plugin-tailwindcss/pull/381
-  // ...eslintPluginTailwindcss.configs["flat/recommended"],
-  typescriptEslint.configs.recommended,
-  eslintPluginImport.flatConfigs.recommended,
+  {
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
+  ...tseslint.configs.recommended,
   {
     plugins: {
-      "@next/next": eslintPluginNext,
+      "@next/next": nextPlugin,
     },
     rules: {
-      ...eslintPluginNext.configs.recommended.rules,
-      ...eslintPluginNext.configs["core-web-vitals"].rules,
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs["core-web-vitals"].rules,
     },
   },
   {
+    plugins: {
+        import: pluginImport
+    },
     settings: {
-      tailwindcss: {
-        callees: ["classnames", "clsx", "ctl", "cn", "cva"],
-      },
-
       "import/resolver": {
         typescript: true,
         node: true,
       },
     },
     rules: {
+      "import/order": [
+        "warn",
+        {
+          "groups": ["external", "builtin", "internal", "sibling", "parent", "index"],
+          "alphabetize": {
+            order: "asc",
+            caseInsensitive: true,
+          },
+        },
+      ],
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -56,53 +64,6 @@ const config = typescriptEslint.config(
           varsIgnorePattern: "^_",
         },
       ],
-      "sort-imports": [
-        "error",
-        {
-          ignoreCase: true,
-          ignoreDeclarationSort: true,
-        },
-      ],
-      "import/order": [
-        "warn",
-        {
-          groups: ["external", "builtin", "internal", "sibling", "parent", "index"],
-          pathGroups: [
-            ...getDirectoriesToSort().map((singleDir) => ({
-              pattern: `${singleDir}/**`,
-              group: "internal",
-            })),
-            {
-              pattern: "env",
-              group: "internal",
-            },
-            {
-              pattern: "theme",
-              group: "internal",
-            },
-            {
-              pattern: "public/**",
-              group: "internal",
-              position: "after",
-            },
-          ],
-          pathGroupsExcludedImportTypes: ["internal"],
-          alphabetize: {
-            order: "asc",
-            caseInsensitive: true,
-          },
-        },
-      ],
     },
   }
-)
-
-function getDirectoriesToSort() {
-  const ignoredSortingDirectories = [".git", ".next", ".vscode", "node_modules"]
-  return fs
-    .readdirSync(process.cwd())
-    .filter((file) => fs.statSync(process.cwd() + "/" + file).isDirectory())
-    .filter((f) => !ignoredSortingDirectories.includes(f))
-}
-
-export default config
+);

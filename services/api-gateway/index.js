@@ -129,22 +129,22 @@ const specs = swaggerJsdoc(swaggerOptions)
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs))
 
 // Authentication middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"]
-  const token = authHeader && authHeader.split(" ")[1]
+// const authenticateToken = (req, res, next) => {
+//   const authHeader = req.headers["authorization"]
+//   const token = authHeader && authHeader.split(" ")[1]
 
-  if (!token) {
-    return res.status(401).json({ error: "Access token required" })
-  }
+//   if (!token) {
+//     return res.status(401).json({ error: "Access token required" })
+//   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: "Invalid or expired token" })
-    }
-    req.user = user
-    next()
-  })
-}
+//   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+//     if (err) {
+//       return res.status(403).json({ error: "Invalid or expired token" })
+//     }
+//     req.user = user
+//     next()
+//   })
+// }
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -380,7 +380,7 @@ wss.on("connection", (ws) => {
 })
 
 // Error handling middleware
-app.use((error, req, res, next) => {
+app.use((error, req, res) => {
   logger.error("Unhandled error:", error)
   res.status(500).json({ error: "Internal server error" })
 })

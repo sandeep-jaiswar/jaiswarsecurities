@@ -265,7 +265,7 @@ async function startKafkaConsumer() {
   await consumer.subscribe({ topics: ["symbol-requests", "ohlcv-requests"] })
 
   await consumer.run({
-    eachMessage: async ({ topic, partition, message }) => {
+    eachMessage: async ({ topic, message }) => {
       try {
         const data = JSON.parse(message.value.toString())
 

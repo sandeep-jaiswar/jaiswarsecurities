@@ -1,16 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useQuery } from "react-query"
+import { useState } from "react"
 import { AnalystPanel } from "@/components/trading/AnalystPanel"
 import { BacktestPanel } from "@/components/trading/BacktestPanel"
 import { MarketScanner } from "@/components/trading/MarketScanner"
 import { NewsPanel } from "@/components/trading/NewsPanel"
-import { PriceActionHeatmap } from "@/components/trading/PriceActionHeatmap"
 import { StrategyTester } from "@/components/trading/StrategyTester"
 import { TradingChart } from "@/components/trading/TradingChart"
 import { TradingToolbar } from "@/components/trading/TradingToolbar"
-import { apiClient } from "@/lib/api"
 import { useTerminalStore } from "@/store/terminalStore"
 
 export default function TradingPage() {

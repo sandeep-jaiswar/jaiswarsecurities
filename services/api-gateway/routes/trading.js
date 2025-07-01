@@ -229,7 +229,7 @@ router.get("/backtest-performance", async (req, res) => {
 // Pattern recognition
 router.get("/patterns/:symbol", async (req, res) => {
   try {
-    const { symbol } = req.params
+    // const { symbol } = req.params
 
     const patterns = [
       {

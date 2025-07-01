@@ -4,13 +4,9 @@ import { useQuery } from "react-query"
 import { apiClient } from "@/lib/api"
 
 export function MarketScanner() {
-  const { data: scannerData, isLoading } = useQuery(
-    "market-scanner",
-    () => apiClient.get("/api/trading/market-scanner"),
-    {
-      refetchInterval: 5000,
-    }
-  )
+  useQuery("market-scanner", () => apiClient.get("/api/trading/market-scanner"), {
+    refetchInterval: 5000,
+  })
 
   const mockData = [
     { symbol: "AAPL", change: "+2.45%", volume: "45.2M", signal: "BUY" },

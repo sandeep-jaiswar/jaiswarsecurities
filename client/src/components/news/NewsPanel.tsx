@@ -9,7 +9,7 @@ interface NewsPanelProps {
 }
 
 export function NewsPanel({ symbol }: NewsPanelProps) {
-  const { data: newsData, isLoading } = useQuery(["news", symbol], () => api.getNews({ symbol, limit: 20 }), {
+  const { isLoading } = useQuery(["news", symbol], () => api.getNews({ symbol, limit: 20 }), {
     refetchInterval: 30000, // Refresh every 30 seconds
   })
 
@@ -41,17 +41,6 @@ export function NewsPanel({ symbol }: NewsPanelProps) {
     },
   ]
 
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case "positive":
-        return "text-market-up"
-      case "negative":
-        return "text-market-down"
-      default:
-        return "text-terminal-muted"
-    }
-  }
-
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -80,8 +69,8 @@ export function NewsPanel({ symbol }: NewsPanelProps) {
                         article.sentiment === "positive"
                           ? "bg-market-up"
                           : article.sentiment === "negative"
-                          ? "bg-market-down"
-                          : "bg-terminal-muted"
+                            ? "bg-market-down"
+                            : "bg-terminal-muted"
                       }`}
                     ></div>
                     <div className="text-xs text-terminal-muted">{formatTime(article.publishedAt)}</div>

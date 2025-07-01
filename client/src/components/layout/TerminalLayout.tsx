@@ -3,7 +3,7 @@
 import type { ReactNode } from "react"
 
 interface TerminalLayoutProps {
-  children: ReactNode;
+  children: ReactNode
 }
 
 export function TerminalLayout({ children }: TerminalLayoutProps) {

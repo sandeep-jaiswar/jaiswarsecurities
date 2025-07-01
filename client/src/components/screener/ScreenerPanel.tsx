@@ -8,9 +8,9 @@ import { formatPercent, formatPrice, formatVolume, getChangeColor } from "@/util
 export function ScreenerPanel() {
   const [selectedScreen, setSelectedScreen] = useState<string>("")
 
-  const { data: screens } = useQuery("screens", api.getScreens)
+  useQuery("screens", api.getScreens)
 
-  const { data: screenResults, isLoading: isRunning } = useQuery(
+  const { isLoading: isRunning } = useQuery(
     ["screen-results", selectedScreen],
     () => (selectedScreen ? api.runScreen(selectedScreen) : null),
     {

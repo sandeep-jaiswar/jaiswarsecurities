@@ -1,7 +1,6 @@
 const express = require("express")
 const router = express.Router()
 const { createClient } = require("@clickhouse/client")
-const Redis = require("redis")
 const winston = require("winston")
 
 const logger = winston.createLogger({

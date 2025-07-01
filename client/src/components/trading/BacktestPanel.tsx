@@ -4,13 +4,9 @@ import { useQuery } from "react-query"
 import { apiClient } from "@/lib/api"
 
 export function BacktestPanel() {
-  const { data: backtestData, isLoading } = useQuery(
-    "backtest-performance",
-    () => apiClient.get("/api/trading/backtest-performance"),
-    {
-      refetchInterval: 10000,
-    }
-  )
+  useQuery("backtest-performance", () => apiClient.get("/api/trading/backtest-performance"), {
+    refetchInterval: 10000,
+  })
 
   const mockData = {
     strategy: "Keltner Channel Buy X Up, Sell Y Down",

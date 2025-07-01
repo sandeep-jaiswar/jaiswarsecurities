@@ -2,24 +2,19 @@
 
 import { useQuery } from "react-query"
 import { apiClient } from "@/lib/api"
-import { formatNumber, formatPercent } from "@/utils/formatters"
 
-interface MarketData {
-  symbol: string
-  price: number
-  change: number
-  changePercent: number
-  volume: number
-}
+// interface MarketData {
+//   symbol: string
+//   price: number
+//   change: number
+//   changePercent: number
+//   volume: number
+// }
 
 export function MarketOverview() {
-  const { data: marketData, isLoading } = useQuery(
-    "market-overview",
-    () => apiClient.get("/analytics/market-overview"),
-    {
-      refetchInterval: 5000, // Refresh every 5 seconds
-    }
-  )
+  const { isLoading } = useQuery("market-overview", () => apiClient.get("/analytics/market-overview"), {
+    refetchInterval: 5000, // Refresh every 5 seconds
+  })
 
   const majorIndices = [
     { symbol: "SPY", name: "S&P 500" },

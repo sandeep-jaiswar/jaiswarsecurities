@@ -43,21 +43,22 @@ apiClient.interceptors.response.use(
 // API endpoints
 export const api = {
   // Market data
-  getSymbols: (params?: any) => apiClient.get("/symbols", { params }),
+  getSymbols: (params?: Record<string, unknown>) => apiClient.get("/symbols", { params }),
   getSymbol: (symbol: string) => apiClient.get(`/symbols/${symbol}`),
-  getOHLCV: (symbol: string, params?: any) => apiClient.get(`/symbols/${symbol}/ohlcv`, { params }),
-  getIndicators: (symbol: string, params?: any) => apiClient.get(`/symbols/${symbol}/indicators`, { params }),
+  getOHLCV: (symbol: string, params?: Record<string, unknown>) => apiClient.get(`/symbols/${symbol}/ohlcv`, { params }),
+  getIndicators: (symbol: string, params?: Record<string, unknown>) =>
+    apiClient.get(`/symbols/${symbol}/indicators`, { params }),
 
   // Analytics
   getMarketOverview: () => apiClient.get("/analytics/market-overview"),
 
   // Screening
   getScreens: () => apiClient.get("/screens"),
-  runScreen: (screenId: string, params?: any) => apiClient.post(`/screens/${screenId}/run`, params),
+  runScreen: (screenId: string, params?: Record<string, unknown>) => apiClient.post(`/screens/${screenId}/run`, params),
 
   // Backtesting
   getStrategies: () => apiClient.get("/strategies"),
-  getBacktests: (params?: any) => apiClient.get("/backtests", { params }),
+  getBacktests: (params?: Record<string, unknown>) => apiClient.get("/backtests", { params }),
   getBacktest: (id: string) => apiClient.get(`/backtests/${id}`),
   getBacktestTrades: (id: string) => apiClient.get(`/backtests/${id}/trades`),
   getEquityCurve: (id: string) => apiClient.get(`/backtests/${id}/equity-curve`),
@@ -67,9 +68,9 @@ export const api = {
   getWatchlistSymbols: (id: string) => apiClient.get(`/watchlists/${id}/symbols`),
 
   // News
-  getNews: (params?: any) => apiClient.get("/news", { params }),
+  getNews: (params?: Record<string, unknown>) => apiClient.get("/news", { params }),
 
   // Alerts
   getAlerts: () => apiClient.get("/alerts"),
-  createAlert: (data: any) => apiClient.post("/alerts", data),
+  createAlert: (data: Record<string, unknown>) => apiClient.post("/alerts", data),
 }

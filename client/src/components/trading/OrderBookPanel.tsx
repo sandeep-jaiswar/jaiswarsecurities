@@ -1,6 +1,5 @@
 "use client"
 
-import { useQuery } from "react-query"
 import { formatPrice, formatVolume } from "@/utils/formatters"
 
 interface OrderBookPanelProps {

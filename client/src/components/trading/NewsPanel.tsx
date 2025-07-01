@@ -8,13 +8,9 @@ interface NewsPanelProps {
 }
 
 export function NewsPanel({ symbol }: NewsPanelProps) {
-  const { data: newsData, isLoading } = useQuery(
-    ["trading-news", symbol],
-    () => apiClient.get(`/api/trading/news/${symbol}`),
-    {
-      refetchInterval: 30000,
-    }
-  )
+  useQuery(["trading-news", symbol], () => apiClient.get(`/api/trading/news/${symbol}`), {
+    refetchInterval: 30000,
+  })
 
   const mockNews = [
     {

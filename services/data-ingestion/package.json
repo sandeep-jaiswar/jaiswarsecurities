@@ -1,6 +1,6 @@
 {
   "name": "stock-data-ingestion",
-  "version": "2.0.0",
+  "version": "0.0.0",
   "description": "Stock data ingestion service with ClickHouse",
   "main": "index.js",
   "scripts": {

@@ -1,7 +1,7 @@
 const { createClient } = require("@clickhouse/client")
 const express = require("express")
 const { Kafka } = require("kafkajs")
-const { SMA, EMA, RSI, MACD, BollingerBands } = require("technicalindicators")
+// const { SMA, EMA, RSI, MACD, BollingerBands } = require("technicalindicators")
 const winston = require("winston")
 require("dotenv").config()
 
@@ -126,7 +126,7 @@ async function runBacktest(backtestId, symbols) {
 
     // Get backtest configuration
     const backtestConfig = await getBacktestConfig(backtestId)
-    const strategy = await getStrategy(backtestConfig.strategy_id)
+    // const strategy = await getStrategy(backtestConfig.strategy_id)
 
     // Get symbols to test (if not provided, use sample symbols)
     if (symbols.length === 0) {
@@ -147,8 +147,8 @@ async function runBacktest(backtestId, symbols) {
     }
 
     // Simple backtest simulation (simplified for demo)
-    const startDate = new Date(backtestConfig.start_date)
-    const endDate = new Date(backtestConfig.end_date)
+    // const startDate = new Date(backtestConfig.start_date)
+    // const endDate = new Date(backtestConfig.end_date)
 
     // Calculate final statistics (mock data for demo)
     await calculateBacktestStatistics(backtestId, portfolio)
@@ -190,7 +190,7 @@ async function runBacktest(backtestId, symbols) {
 }
 
 // Calculate backtest statistics (simplified)
-async function calculateBacktestStatistics(backtestId, portfolio) {
+async function calculateBacktestStatistics(backtestId) {
   try {
     // Mock statistics for demo
     const totalReturn = 15.5
@@ -240,15 +240,15 @@ async function getBacktestConfig(backtestId) {
 }
 
 // Get strategy
-async function getStrategy(strategyId) {
-  const result = await clickhouse.query({
-    query: "SELECT * FROM strategies WHERE id = {id:UInt32}",
-    query_params: { id: strategyId },
-  })
+// async function getStrategy(strategyId) {
+//   const result = await clickhouse.query({
+//     query: "SELECT * FROM strategies WHERE id = {id:UInt32}",
+//     query_params: { id: strategyId },
+//   })
 
-  const data = await result.json()
-  return data.data[0]
-}
+//   const data = await result.json()
+//   return data.data[0]
+// }
 
 // Get backtest results
 async function getBacktestResults(backtestId) {
@@ -273,7 +273,7 @@ async function startKafkaConsumer() {
   await consumer.subscribe({ topics: ["backtest-requests"] })
 
   await consumer.run({
-    eachMessage: async ({ topic, partition, message }) => {
+    eachMessage: async ({ topic, message }) => {
       try {
         const data = JSON.parse(message.value.toString())
 

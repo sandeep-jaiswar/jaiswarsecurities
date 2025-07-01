@@ -1,6 +1,6 @@
 "use client"
 
-import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { PlusIcon } from "@heroicons/react/24/outline"
 import { useState } from "react"
 import { useQuery } from "react-query"
 import { api } from "@/lib/api"

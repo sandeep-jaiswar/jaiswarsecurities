@@ -1,52 +1,72 @@
-import eslintPluginNext from "@next/eslint-plugin-next"
-import eslintPluginImport from "eslint-plugin-import"
-import eslintPluginStorybook from "eslint-plugin-storybook"
-import typescriptEslint from "typescript-eslint"
-import * as fs from "fs"
 
-const eslintIgnore = [
-  ".git/",
-  ".next/",
-  "node_modules/",
-  "dist/",
-  "build/",
-  "coverage/",
-  "tests/",
-  "services/",
-  "*.min.js",
-  "*.config.js",
-  "*.d.ts",
-]
+import globals from "globals";
+import tseslint from "typescript-eslint";
+import nodePlugin from "eslint-plugin-node";
+import nextPlugin from "@next/eslint-plugin-next";
+import prettierConfig from "eslint-config-prettier";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
 
-const config = typescriptEslint.config(
+export default tseslint.config(
   {
-    ignores: eslintIgnore,
+    ignores: [
+      ".git/",
+      "node_modules/",
+      "dist/",
+      "build/",
+      "client/.next/",
+      "coverage/",
+      "*.min.js",
+      "*.d.ts",
+    ],
   },
-  ...eslintPluginStorybook.configs["flat/recommended"],
-  typescriptEslint.configs.recommended,
-  eslintPluginImport.flatConfigs.recommended,
   {
     plugins: {
-      "@next/next": eslintPluginNext,
-    },
-    rules: {
-      ...eslintPluginNext.configs.recommended.rules,
-      ...eslintPluginNext.configs["core-web-vitals"].rules,
-      "@next/next/no-html-link-for-pages": "off", // ✅ Disable classic pages dir warning
-      "@next/next/no-duplicate-head": "off", // ✅ Disable duplicate head warning
+      "@typescript-eslint": tsPlugin,
     },
   },
   {
-    settings: {
-      tailwindcss: {
-        callees: ["classnames", "clsx", "ctl", "cn", "cva"],
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        project: true,
       },
-      "import/resolver": {
-        typescript: true,
-        node: true,
+      globals: {
+        ...globals.node,
       },
     },
     rules: {
+      ...tsPlugin.configs.recommended.rules,
+    }
+  },
+  {
+    files: ["client/**/*.ts", "client/**/*.tsx"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+    plugins: {
+      "@next/next": nextPlugin,
+    },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs["core-web-vitals"].rules,
+      "@next/next/no-html-link-for-pages": "off",
+    },
+  },
+  {
+    files: ["services/**/*.ts"],
+    plugins: {
+      node: nodePlugin,
+    },
+    rules: {
+      ...nodePlugin.configs.recommended.rules,
+    },
+  },
+  {
+    rules: {
+      ...prettierConfig.rules,
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -54,43 +74,6 @@ const config = typescriptEslint.config(
           varsIgnorePattern: "^_",
         },
       ],
-      "sort-imports": [
-        "error",
-        {
-          ignoreCase: true,
-          ignoreDeclarationSort: true,
-        },
-      ],
-      "import/order": [
-        "warn",
-        {
-          groups: ["external", "builtin", "internal", "sibling", "parent", "index"],
-          pathGroups: [
-            ...getDirectoriesToSort().map((singleDir) => ({
-              pattern: `${singleDir}/**`,
-              group: "internal",
-            })),
-            { pattern: "env", group: "internal" },
-            { pattern: "theme", group: "internal" },
-            { pattern: "public/**", group: "internal", position: "after" },
-          ],
-          pathGroupsExcludedImportTypes: ["internal"],
-          alphabetize: {
-            order: "asc",
-            caseInsensitive: true,
-          },
-        },
-      ],
     },
-  }
-)
-
-function getDirectoriesToSort() {
-  const ignoredSortingDirectories = [".git", ".next", ".vscode", "node_modules"]
-  return fs
-    .readdirSync(process.cwd())
-    .filter((file) => fs.statSync(`${process.cwd()}/${file}`).isDirectory())
-    .filter((f) => !ignoredSortingDirectories.includes(f))
-}
-
-export default config
+  },
+);

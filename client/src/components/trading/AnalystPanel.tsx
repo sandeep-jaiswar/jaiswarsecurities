@@ -8,13 +8,9 @@ interface AnalystPanelProps {
 }
 
 export function AnalystPanel({ symbol }: AnalystPanelProps) {
-  const { data: analystData, isLoading } = useQuery(
-    ["analyst-estimates", symbol],
-    () => apiClient.get(`/api/trading/analyst-estimates/${symbol}`),
-    {
-      refetchInterval: 60000,
-    }
-  )
+  useQuery(["analyst-estimates", symbol], () => apiClient.get(`/api/trading/analyst-estimates/${symbol}`), {
+    refetchInterval: 60000,
+  })
 
   const mockData = {
     reports: [

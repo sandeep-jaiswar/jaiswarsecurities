@@ -34,7 +34,7 @@ interface TerminalState {
 
 export const useTerminalStore = create<TerminalState>()(
   devtools(
-    (set, get) => ({
+    (set) => ({
       // Initial state
       activeSymbol: "AAPL",
       activePanel: "chart",

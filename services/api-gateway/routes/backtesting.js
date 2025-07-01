@@ -162,7 +162,7 @@ router.get("/backtests", async (req, res) => {
  */
 router.post("/backtests", async (req, res) => {
   try {
-    const { strategy_id, name, start_date, end_date, initial_capital, symbols = [] } = req.body
+    const { strategy_id, name, start_date, end_date, initial_capital } = req.body
 
     const backtestId = Date.now()
 

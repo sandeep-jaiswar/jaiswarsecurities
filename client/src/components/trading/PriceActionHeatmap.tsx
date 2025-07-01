@@ -22,8 +22,8 @@ export function PriceActionHeatmap() {
                   ? "bg-market-up"
                   : "bg-market-up opacity-50"
                 : Math.random() > 0.7
-                ? "bg-market-down"
-                : "bg-market-down opacity-50"
+                  ? "bg-market-down"
+                  : "bg-market-down opacity-50"
             }`}
           />
         ))}
