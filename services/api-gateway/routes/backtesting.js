@@ -1,21 +1,21 @@
-const express = require('express');
-const router = express.Router();
-const { createClient } = require('@clickhouse/client');
-const winston = require('winston');
+const express = require("express")
+const router = express.Router()
+const { createClient } = require("@clickhouse/client")
+const winston = require("winston")
 
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
-});
+})
 
 // Initialize ClickHouse connection
 const clickhouse = createClient({
-  url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
-  username: process.env.CLICKHOUSE_USER || 'stockuser',
-  password: process.env.CLICKHOUSE_PASSWORD || 'stockpass123',
-  database: process.env.CLICKHOUSE_DATABASE || 'stockdb',
-});
+  url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
+  username: process.env.CLICKHOUSE_USER || "stockuser",
+  password: process.env.CLICKHOUSE_PASSWORD || "stockpass123",
+  database: process.env.CLICKHOUSE_DATABASE || "stockdb",
+})
 
 /**
  * @swagger
@@ -27,7 +27,7 @@ const clickhouse = createClient({
  *       200:
  *         description: List of trading strategies
  */
-router.get('/strategies', async (req, res) => {
+router.get("/strategies", async (req, res) => {
   try {
     const result = await clickhouse.query({
       query: `
@@ -43,15 +43,15 @@ router.get('/strategies', async (req, res) => {
         WHERE is_active = 1
         ORDER BY name
       `,
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching strategies:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching strategies:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -75,21 +75,21 @@ router.get('/strategies', async (req, res) => {
  *       200:
  *         description: List of backtests
  */
-router.get('/backtests', async (req, res) => {
+router.get("/backtests", async (req, res) => {
   try {
-    const { strategy_id, status } = req.query;
+    const { strategy_id, status } = req.query
 
-    let whereClause = 'WHERE 1=1';
-    const queryParams = {};
+    let whereClause = "WHERE 1=1"
+    const queryParams = {}
 
     if (strategy_id) {
-      whereClause += ' AND b.strategy_id = {strategyId:UInt32}';
-      queryParams.strategyId = parseInt(strategy_id);
+      whereClause += " AND b.strategy_id = {strategyId:UInt32}"
+      queryParams.strategyId = parseInt(strategy_id)
     }
 
     if (status) {
-      whereClause += ' AND b.status = {status:String}';
-      queryParams.status = status;
+      whereClause += " AND b.status = {status:String}"
+      queryParams.status = status
     }
 
     const result = await clickhouse.query({
@@ -117,15 +117,15 @@ router.get('/backtests', async (req, res) => {
         LIMIT 100
       `,
       query_params: queryParams,
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching backtests:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching backtests:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -160,14 +160,14 @@ router.get('/backtests', async (req, res) => {
  *       201:
  *         description: Backtest started
  */
-router.post('/backtests', async (req, res) => {
+router.post("/backtests", async (req, res) => {
   try {
-    const { strategy_id, name, start_date, end_date, initial_capital, symbols = [] } = req.body;
+    const { strategy_id, name, start_date, end_date, initial_capital, symbols = [] } = req.body
 
-    const backtestId = Date.now();
+    const backtestId = Date.now()
 
     await clickhouse.insert({
-      table: 'backtests',
+      table: "backtests",
       values: [
         {
           id: backtestId,
@@ -178,10 +178,10 @@ router.post('/backtests', async (req, res) => {
           initial_capital,
           commission: 0.001,
           slippage: 0.001,
-          status: 'pending',
+          status: "pending",
         },
       ],
-    });
+    })
 
     // In a real implementation, this would trigger the backtesting service
     // For now, we'll simulate immediate completion with mock results
@@ -209,23 +209,23 @@ router.post('/backtests', async (req, res) => {
             totalTrades: Math.floor(20 + Math.random() * 50),
             id: backtestId,
           },
-        });
+        })
       } catch (error) {
-        logger.error('Error updating backtest results:', error);
+        logger.error("Error updating backtest results:", error)
       }
-    }, 5000);
+    }, 5000)
 
     res.status(201).json({
       id: backtestId,
       name,
-      status: 'pending',
-      message: 'Backtest started successfully',
-    });
+      status: "pending",
+      message: "Backtest started successfully",
+    })
   } catch (error) {
-    logger.error('Error starting backtest:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error starting backtest:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -244,9 +244,9 @@ router.post('/backtests', async (req, res) => {
  *       200:
  *         description: Detailed backtest results
  */
-router.get('/backtests/:id', async (req, res) => {
+router.get("/backtests/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
     const result = await clickhouse.query({
       query: `
@@ -260,19 +260,19 @@ router.get('/backtests/:id', async (req, res) => {
         WHERE b.id = {id:UInt32}
       `,
       query_params: { id: parseInt(id) },
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     if (data.data.length === 0) {
-      return res.status(404).json({ error: 'Backtest not found' });
+      return res.status(404).json({ error: "Backtest not found" })
     }
 
-    res.json(data.data[0]);
+    res.json(data.data[0])
   } catch (error) {
-    logger.error('Error fetching backtest details:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching backtest details:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -291,9 +291,9 @@ router.get('/backtests/:id', async (req, res) => {
  *       200:
  *         description: Trade history
  */
-router.get('/backtests/:id/trades', async (req, res) => {
+router.get("/backtests/:id/trades", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
     const result = await clickhouse.query({
       query: `
@@ -315,15 +315,15 @@ router.get('/backtests/:id/trades', async (req, res) => {
         ORDER BY bt.entry_date DESC
       `,
       query_params: { backtestId: parseInt(id) },
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching backtest trades:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching backtest trades:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -342,9 +342,9 @@ router.get('/backtests/:id/trades', async (req, res) => {
  *       200:
  *         description: Equity curve data
  */
-router.get('/backtests/:id/equity-curve', async (req, res) => {
+router.get("/backtests/:id/equity-curve", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
     const result = await clickhouse.query({
       query: `
@@ -361,15 +361,15 @@ router.get('/backtests/:id/equity-curve', async (req, res) => {
         ORDER BY trade_date ASC
       `,
       query_params: { backtestId: parseInt(id) },
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching equity curve:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching equity curve:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -394,36 +394,36 @@ router.get('/backtests/:id/equity-curve', async (req, res) => {
  *       201:
  *         description: Strategy created
  */
-router.post('/strategies', async (req, res) => {
+router.post("/strategies", async (req, res) => {
   try {
-    const { name, description, parameters } = req.body;
-    const strategyId = Date.now();
+    const { name, description, parameters } = req.body
+    const strategyId = Date.now()
 
     await clickhouse.insert({
-      table: 'strategies',
+      table: "strategies",
       values: [
         {
           id: strategyId,
           name,
-          description: description || '',
+          description: description || "",
           parameters: JSON.stringify(parameters || {}),
-          created_by: 'system',
+          created_by: "system",
           is_active: 1,
         },
       ],
-    });
+    })
 
     res.status(201).json({
       id: strategyId,
       name,
       description,
       parameters,
-      message: 'Strategy created successfully',
-    });
+      message: "Strategy created successfully",
+    })
   } catch (error) {
-    logger.error('Error creating strategy:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error creating strategy:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
-module.exports = router;
+module.exports = router

@@ -1,15 +1,11 @@
-'use client'
+"use client"
 
-import { ReactNode } from 'react'
+import type { ReactNode } from "react"
 
 interface TerminalLayoutProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 export function TerminalLayout({ children }: TerminalLayoutProps) {
-  return (
-    <div className="min-h-screen bg-terminal-bg text-terminal-text">
-      {children}
-    </div>
-  )
+  return <div className="min-h-screen bg-terminal-bg text-terminal-text">{children}</div>
 }

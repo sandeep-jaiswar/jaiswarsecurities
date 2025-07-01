@@ -2,27 +2,29 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+RUN apk add --no-cache curl
+
+# Add non-root user
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+
 # Install dependencies
-COPY package.json ./
-# Generate package-lock.json if it doesn't exist
-RUN if [ ! -f package-lock.json ]; then npm install --package-lock-only; fi
-COPY package-lock.json* ./
+COPY package.json package-lock.json ./
 RUN npm ci --only=production
 
-# Copy application code
-COPY . .
+# Copy source code and assign ownership
+COPY --chown=nodejs:nodejs . .
 
 # Create logs directory
 RUN mkdir -p logs
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
-
-# Change ownership of the app directory
-RUN chown -R nodejs:nodejs /app
+# Switch to non-root user
 USER nodejs
 
+# Expose service port
 EXPOSE 3002
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD wget --quiet --spider http://localhost:3002/health || exit 1
 
 CMD ["node", "index.js"]

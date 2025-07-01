@@ -1,8 +1,8 @@
-'use client'
+"use client"
 
-import { useQuery } from 'react-query'
-import { apiClient } from '@/lib/api'
-import { formatNumber, formatPercent } from '@/utils/formatters'
+import { useQuery } from "react-query"
+import { apiClient } from "@/lib/api"
+import { formatNumber, formatPercent } from "@/utils/formatters"
 
 interface MarketData {
   symbol: string
@@ -14,43 +14,44 @@ interface MarketData {
 
 export function MarketOverview() {
   const { data: marketData, isLoading } = useQuery(
-    'market-overview',
-    () => apiClient.get('/analytics/market-overview'),
+    "market-overview",
+    () => apiClient.get("/analytics/market-overview"),
     {
       refetchInterval: 5000, // Refresh every 5 seconds
     }
   )
 
   const majorIndices = [
-    { symbol: 'SPY', name: 'S&P 500' },
-    { symbol: 'QQQ', name: 'NASDAQ' },
-    { symbol: 'DIA', name: 'DOW' },
-    { symbol: 'IWM', name: 'Russell 2000' },
+    { symbol: "SPY", name: "S&P 500" },
+    { symbol: "QQQ", name: "NASDAQ" },
+    { symbol: "DIA", name: "DOW" },
+    { symbol: "IWM", name: "Russell 2000" },
   ]
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center">
         <div className="loading-spinner"></div>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center justify-between h-full px-4">
+    <div className="flex h-full items-center justify-between px-4">
       {/* Market Status */}
       <div className="flex items-center space-x-6">
         <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-market-up rounded-full animate-pulse"></div>
+          <div className="h-2 w-2 animate-pulse rounded-full bg-market-up"></div>
           <span className="text-sm font-medium">MARKET OPEN</span>
         </div>
         <div className="text-xs text-terminal-muted">
-          {new Date().toLocaleString('en-US', {
-            timeZone: 'America/New_York',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          })} EST
+          {new Date().toLocaleString("en-US", {
+            timeZone: "America/New_York",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })}{" "}
+          EST
         </div>
       </div>
 
@@ -60,7 +61,7 @@ export function MarketOverview() {
           <div key={index.symbol} className="text-center">
             <div className="text-xs text-terminal-muted">{index.name}</div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-mono">450.25</span>
+              <span className="font-mono text-sm">450.25</span>
               <span className="text-xs text-market-up">+1.25%</span>
             </div>
           </div>

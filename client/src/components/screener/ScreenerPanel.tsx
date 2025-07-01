@@ -1,18 +1,18 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { useQuery } from 'react-query'
-import { api } from '@/lib/api'
-import { formatPrice, formatPercent, formatVolume, getChangeColor } from '@/utils/formatters'
+import { useState } from "react"
+import { useQuery } from "react-query"
+import { api } from "@/lib/api"
+import { formatPercent, formatPrice, formatVolume, getChangeColor } from "@/utils/formatters"
 
 export function ScreenerPanel() {
-  const [selectedScreen, setSelectedScreen] = useState<string>('')
+  const [selectedScreen, setSelectedScreen] = useState<string>("")
 
-  const { data: screens } = useQuery('screens', api.getScreens)
+  const { data: screens } = useQuery("screens", api.getScreens)
 
   const { data: screenResults, isLoading: isRunning } = useQuery(
-    ['screen-results', selectedScreen],
-    () => selectedScreen ? api.runScreen(selectedScreen) : null,
+    ["screen-results", selectedScreen],
+    () => (selectedScreen ? api.runScreen(selectedScreen) : null),
     {
       enabled: !!selectedScreen,
     }
@@ -21,8 +21,8 @@ export function ScreenerPanel() {
   // Mock screen results
   const mockResults = [
     {
-      symbol: 'AAPL',
-      name: 'Apple Inc.',
+      symbol: "AAPL",
+      name: "Apple Inc.",
       price: 150.25,
       change: 2.45,
       changePercent: 1.65,
@@ -32,9 +32,9 @@ export function ScreenerPanel() {
       score: 85,
     },
     {
-      symbol: 'MSFT',
-      name: 'Microsoft Corporation',
-      price: 285.50,
+      symbol: "MSFT",
+      name: "Microsoft Corporation",
+      price: 285.5,
       change: -1.25,
       changePercent: -0.44,
       volume: 1800000,
@@ -43,10 +43,10 @@ export function ScreenerPanel() {
       score: 78,
     },
     {
-      symbol: 'GOOGL',
-      name: 'Alphabet Inc.',
+      symbol: "GOOGL",
+      name: "Alphabet Inc.",
       price: 125.75,
-      change: 3.20,
+      change: 3.2,
       changePercent: 2.61,
       volume: 3200000,
       marketCap: 1600000000000,
@@ -56,7 +56,7 @@ export function ScreenerPanel() {
   ]
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex h-full flex-col">
       {/* Header */}
       <div className="border-b border-terminal-border p-4">
         <div className="flex items-center justify-between">
@@ -65,7 +65,7 @@ export function ScreenerPanel() {
             <select
               value={selectedScreen}
               onChange={(e) => setSelectedScreen(e.target.value)}
-              className="bg-terminal-bg border border-terminal-border rounded px-3 py-1 text-sm"
+              className="rounded border border-terminal-border bg-terminal-bg px-3 py-1 text-sm"
             >
               <option value="">Select Screen</option>
               <option value="high-volume">High Volume Breakout</option>
@@ -76,9 +76,9 @@ export function ScreenerPanel() {
             <button
               onClick={() => selectedScreen && setSelectedScreen(selectedScreen)}
               disabled={!selectedScreen || isRunning}
-              className="px-4 py-1 bg-terminal-accent text-terminal-bg rounded text-sm hover:bg-opacity-80 disabled:opacity-50"
+              className="rounded bg-terminal-accent px-4 py-1 text-sm text-terminal-bg hover:bg-opacity-80 disabled:opacity-50"
             >
-              {isRunning ? 'Running...' : 'Run Screen'}
+              {isRunning ? "Running..." : "Run Screen"}
             </button>
           </div>
         </div>
@@ -87,7 +87,7 @@ export function ScreenerPanel() {
       {/* Results */}
       <div className="flex-1 overflow-hidden">
         {isRunning ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <div className="loading-spinner mx-auto mb-4"></div>
               <div className="text-terminal-muted">Running screen...</div>
@@ -95,7 +95,7 @@ export function ScreenerPanel() {
           </div>
         ) : selectedScreen ? (
           <div className="h-full overflow-y-auto">
-            <table className="w-full data-table">
+            <table className="data-table w-full">
               <thead>
                 <tr>
                   <th>Symbol</th>
@@ -110,9 +110,7 @@ export function ScreenerPanel() {
               <tbody>
                 {mockResults.map((stock) => (
                   <tr key={stock.symbol} className="hover:bg-terminal-border">
-                    <td className="font-medium text-terminal-accent">
-                      {stock.symbol}
-                    </td>
+                    <td className="font-medium text-terminal-accent">{stock.symbol}</td>
                     <td className="text-terminal-text">{stock.name}</td>
                     <td className="font-mono">{formatPrice(stock.price)}</td>
                     <td className={`font-mono ${getChangeColor(stock.change)}`}>
@@ -127,9 +125,9 @@ export function ScreenerPanel() {
             </table>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex h-full items-center justify-center">
             <div className="text-center">
-              <div className="text-4xl text-terminal-muted mb-4">🔍</div>
+              <div className="mb-4 text-4xl text-terminal-muted">🔍</div>
               <div className="text-terminal-muted">Select a screen to get started</div>
             </div>
           </div>
@@ -139,12 +137,8 @@ export function ScreenerPanel() {
       {/* Footer */}
       <div className="border-t border-terminal-border p-2">
         <div className="flex items-center justify-between text-xs text-terminal-muted">
-          <div>
-            {selectedScreen && `Results: ${mockResults.length} stocks found`}
-          </div>
-          <div>
-            Last updated: {new Date().toLocaleTimeString()}
-          </div>
+          <div>{selectedScreen && `Results: ${mockResults.length} stocks found`}</div>
+          <div>Last updated: {new Date().toLocaleTimeString()}</div>
         </div>
       </div>
     </div>

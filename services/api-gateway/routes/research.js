@@ -1,21 +1,21 @@
-const express = require('express');
-const router = express.Router();
-const { createClient } = require('@clickhouse/client');
-const winston = require('winston');
+const express = require("express")
+const router = express.Router()
+const { createClient } = require("@clickhouse/client")
+const winston = require("winston")
 
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
-});
+})
 
 // Initialize ClickHouse connection
 const clickhouse = createClient({
-  url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
-  username: process.env.CLICKHOUSE_USER || 'stockuser',
-  password: process.env.CLICKHOUSE_PASSWORD || 'stockpass123',
-  database: process.env.CLICKHOUSE_DATABASE || 'stockdb',
-});
+  url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
+  username: process.env.CLICKHOUSE_USER || "stockuser",
+  password: process.env.CLICKHOUSE_PASSWORD || "stockpass123",
+  database: process.env.CLICKHOUSE_DATABASE || "stockdb",
+})
 
 /**
  * @swagger
@@ -50,26 +50,26 @@ const clickhouse = createClient({
  *       200:
  *         description: News articles with sentiment
  */
-router.get('/news', async (req, res) => {
+router.get("/news", async (req, res) => {
   try {
-    const { symbol, category, sentiment, limit = 50 } = req.query;
+    const { symbol, category, sentiment, limit = 50 } = req.query
 
-    let whereClause = 'WHERE na.published_at >= today() - INTERVAL 7 DAY';
-    const queryParams = { limit: parseInt(limit) };
+    let whereClause = "WHERE na.published_at >= today() - INTERVAL 7 DAY"
+    const queryParams = { limit: parseInt(limit) }
 
     if (symbol) {
-      whereClause += ' AND s.symbol = {symbol:String}';
-      queryParams.symbol = symbol.toUpperCase();
+      whereClause += " AND s.symbol = {symbol:String}"
+      queryParams.symbol = symbol.toUpperCase()
     }
 
     if (category) {
-      whereClause += ' AND nc.code = {category:String}';
-      queryParams.category = category;
+      whereClause += " AND nc.code = {category:String}"
+      queryParams.category = category
     }
 
     if (sentiment) {
-      whereClause += ' AND ns.sentiment_label = {sentiment:String}';
-      queryParams.sentiment = sentiment;
+      whereClause += " AND ns.sentiment_label = {sentiment:String}"
+      queryParams.sentiment = sentiment
     }
 
     const result = await clickhouse.query({
@@ -100,15 +100,15 @@ router.get('/news', async (req, res) => {
         LIMIT {limit:UInt32}
       `,
       query_params: queryParams,
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching news:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching news:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -134,27 +134,27 @@ router.get('/news', async (req, res) => {
  *       200:
  *         description: Earnings calendar
  */
-router.get('/earnings', async (req, res) => {
+router.get("/earnings", async (req, res) => {
   try {
-    const { date, period = 'week' } = req.query;
+    const { date, period = "week" } = req.query
 
-    let dateFilter = '';
-    const queryParams = {};
+    let dateFilter = ""
+    const queryParams = {}
 
     if (date) {
-      dateFilter = 'AND ce.event_date = {date:Date}';
-      queryParams.date = date;
+      dateFilter = "AND ce.event_date = {date:Date}"
+      queryParams.date = date
     } else {
       switch (period) {
-        case 'today':
-          dateFilter = 'AND ce.event_date = today()';
-          break;
-        case 'week':
-          dateFilter = 'AND ce.event_date BETWEEN today() AND today() + INTERVAL 7 DAY';
-          break;
-        case 'month':
-          dateFilter = 'AND ce.event_date BETWEEN today() AND today() + INTERVAL 30 DAY';
-          break;
+        case "today":
+          dateFilter = "AND ce.event_date = today()"
+          break
+        case "week":
+          dateFilter = "AND ce.event_date BETWEEN today() AND today() + INTERVAL 7 DAY"
+          break
+        case "month":
+          dateFilter = "AND ce.event_date BETWEEN today() AND today() + INTERVAL 30 DAY"
+          break
       }
     }
 
@@ -185,19 +185,19 @@ router.get('/earnings', async (req, res) => {
         ORDER BY ce.event_date ASC, s.symbol
       `,
       query_params: queryParams,
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       period,
       date,
       earnings: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching earnings calendar:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching earnings calendar:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -216,9 +216,9 @@ router.get('/earnings', async (req, res) => {
  *       200:
  *         description: Analyst estimates
  */
-router.get('/estimates/:symbol', async (req, res) => {
+router.get("/estimates/:symbol", async (req, res) => {
   try {
-    const { symbol } = req.params;
+    const { symbol } = req.params
 
     const result = await clickhouse.query({
       query: `
@@ -244,18 +244,18 @@ router.get('/estimates/:symbol', async (req, res) => {
         ORDER BY ae.fiscal_year DESC, ae.fiscal_quarter DESC, ae.estimate_type
       `,
       query_params: { symbol: symbol.toUpperCase() },
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       symbol: symbol.toUpperCase(),
       estimates: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching analyst estimates:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching analyst estimates:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -279,16 +279,16 @@ router.get('/estimates/:symbol', async (req, res) => {
  *       200:
  *         description: Insider trading data
  */
-router.get('/insider-trading', async (req, res) => {
+router.get("/insider-trading", async (req, res) => {
   try {
-    const { symbol, days = 30 } = req.query;
+    const { symbol, days = 30 } = req.query
 
-    let whereClause = `WHERE it.transaction_date >= today() - INTERVAL {days:UInt32} DAY`;
-    const queryParams = { days: parseInt(days) };
+    let whereClause = `WHERE it.transaction_date >= today() - INTERVAL {days:UInt32} DAY`
+    const queryParams = { days: parseInt(days) }
 
     if (symbol) {
-      whereClause += ' AND s.symbol = {symbol:String}';
-      queryParams.symbol = symbol.toUpperCase();
+      whereClause += " AND s.symbol = {symbol:String}"
+      queryParams.symbol = symbol.toUpperCase()
     }
 
     const result = await clickhouse.query({
@@ -314,18 +314,18 @@ router.get('/insider-trading', async (req, res) => {
         LIMIT 100
       `,
       query_params: queryParams,
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       period_days: parseInt(days),
       transactions: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching insider trading:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching insider trading:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -344,9 +344,9 @@ router.get('/insider-trading', async (req, res) => {
  *       200:
  *         description: Institutional holdings data
  */
-router.get('/institutional-holdings/:symbol', async (req, res) => {
+router.get("/institutional-holdings/:symbol", async (req, res) => {
   try {
-    const { symbol } = req.params;
+    const { symbol } = req.params
 
     const result = await clickhouse.query({
       query: `
@@ -370,18 +370,18 @@ router.get('/institutional-holdings/:symbol', async (req, res) => {
         LIMIT 50
       `,
       query_params: { symbol: symbol.toUpperCase() },
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       symbol: symbol.toUpperCase(),
       holdings: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching institutional holdings:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching institutional holdings:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -410,21 +410,21 @@ router.get('/institutional-holdings/:symbol', async (req, res) => {
  *       200:
  *         description: Corporate events
  */
-router.get('/events', async (req, res) => {
+router.get("/events", async (req, res) => {
   try {
-    const { symbol, type, days = 30 } = req.query;
+    const { symbol, type, days = 30 } = req.query
 
-    let whereClause = `WHERE ce.event_date BETWEEN today() AND today() + INTERVAL {days:UInt32} DAY`;
-    const queryParams = { days: parseInt(days) };
+    let whereClause = `WHERE ce.event_date BETWEEN today() AND today() + INTERVAL {days:UInt32} DAY`
+    const queryParams = { days: parseInt(days) }
 
     if (symbol) {
-      whereClause += ' AND s.symbol = {symbol:String}';
-      queryParams.symbol = symbol.toUpperCase();
+      whereClause += " AND s.symbol = {symbol:String}"
+      queryParams.symbol = symbol.toUpperCase()
     }
 
     if (type) {
-      whereClause += ' AND et.code = {type:String}';
-      queryParams.type = type;
+      whereClause += " AND et.code = {type:String}"
+      queryParams.type = type
     }
 
     const result = await clickhouse.query({
@@ -448,17 +448,17 @@ router.get('/events', async (req, res) => {
         LIMIT 100
       `,
       query_params: queryParams,
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       period_days: parseInt(days),
       events: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching corporate events:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching corporate events:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
-module.exports = router;
+module.exports = router

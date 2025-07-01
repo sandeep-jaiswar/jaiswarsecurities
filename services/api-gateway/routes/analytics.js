@@ -1,21 +1,21 @@
-const express = require('express');
-const router = express.Router();
-const { createClient } = require('@clickhouse/client');
-const winston = require('winston');
+const express = require("express")
+const router = express.Router()
+const { createClient } = require("@clickhouse/client")
+const winston = require("winston")
 
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
-});
+})
 
 // Initialize ClickHouse connection
 const clickhouse = createClient({
-  url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
-  username: process.env.CLICKHOUSE_USER || 'stockuser',
-  password: process.env.CLICKHOUSE_PASSWORD || 'stockpass123',
-  database: process.env.CLICKHOUSE_DATABASE || 'stockdb',
-});
+  url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
+  username: process.env.CLICKHOUSE_USER || "stockuser",
+  password: process.env.CLICKHOUSE_PASSWORD || "stockpass123",
+  database: process.env.CLICKHOUSE_DATABASE || "stockdb",
+})
 
 /**
  * @swagger
@@ -27,7 +27,7 @@ const clickhouse = createClient({
  *       200:
  *         description: Market overview data
  */
-router.get('/market-overview', async (req, res) => {
+router.get("/market-overview", async (req, res) => {
   try {
     // Get market statistics
     const statsResult = await clickhouse.query({
@@ -45,9 +45,9 @@ router.get('/market-overview', async (req, res) => {
         LEFT JOIN trading_statistics ts ON s.id = ts.security_id AND o.trade_date = ts.trade_date
         WHERE o.trade_date = (SELECT MAX(trade_date) FROM ohlcv_daily)
       `,
-    });
+    })
 
-    const stats = await statsResult.json();
+    const stats = await statsResult.json()
 
     // Get sector performance
     const sectorResult = await clickhouse.query({
@@ -65,21 +65,21 @@ router.get('/market-overview', async (req, res) => {
         GROUP BY sec.name
         ORDER BY avg_change_percent DESC
       `,
-    });
+    })
 
-    const sectors = await sectorResult.json();
+    const sectors = await sectorResult.json()
 
     res.json({
       market_stats: stats.data[0],
       sector_performance: sectors.data,
-      market_status: 'OPEN',
+      market_status: "OPEN",
       last_updated: new Date().toISOString(),
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching market overview:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching market overview:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -99,23 +99,23 @@ router.get('/market-overview', async (req, res) => {
  *       200:
  *         description: Heatmap data
  */
-router.get('/heatmap', async (req, res) => {
+router.get("/heatmap", async (req, res) => {
   try {
-    const { groupBy = 'sector' } = req.query;
+    const { groupBy = "sector" } = req.query
 
-    let groupField = '';
-    let joinClause = '';
+    let groupField = ""
+    let joinClause = ""
 
     switch (groupBy) {
-      case 'sector':
-        groupField = 'sec.name as group_name';
-        joinClause = 'JOIN sectors sec ON c.sector_id = sec.id';
-        break;
-      case 'industry':
-        groupField = 'ind.name as group_name';
-        joinClause = 'JOIN industries ind ON c.industry_id = ind.id';
-        break;
-      case 'market_cap':
+      case "sector":
+        groupField = "sec.name as group_name"
+        joinClause = "JOIN sectors sec ON c.sector_id = sec.id"
+        break
+      case "industry":
+        groupField = "ind.name as group_name"
+        joinClause = "JOIN industries ind ON c.industry_id = ind.id"
+        break
+      case "market_cap":
         groupField = `
           CASE 
             WHEN ts.market_cap > 200000000000 THEN 'Mega Cap'
@@ -124,9 +124,9 @@ router.get('/heatmap', async (req, res) => {
             WHEN ts.market_cap > 300000000 THEN 'Small Cap'
             ELSE 'Micro Cap'
           END as group_name
-        `;
-        joinClause = '';
-        break;
+        `
+        joinClause = ""
+        break
     }
 
     const result = await clickhouse.query({
@@ -147,18 +147,18 @@ router.get('/heatmap', async (req, res) => {
         GROUP BY group_name
         ORDER BY total_market_cap DESC
       `,
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       groupBy,
       data: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching heatmap data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching heatmap data:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -183,15 +183,15 @@ router.get('/heatmap', async (req, res) => {
  *       200:
  *         description: Correlation matrix
  */
-router.get('/correlation', async (req, res) => {
+router.get("/correlation", async (req, res) => {
   try {
-    const { symbols, period = 30 } = req.query;
+    const { symbols, period = 30 } = req.query
 
     if (!symbols) {
-      return res.status(400).json({ error: 'Symbols parameter is required' });
+      return res.status(400).json({ error: "Symbols parameter is required" })
     }
 
-    const symbolList = symbols.split(',').map((s) => s.trim().toUpperCase());
+    const symbolList = symbols.split(",").map((s) => s.trim().toUpperCase())
 
     // Get price data for correlation calculation
     const result = await clickhouse.query({
@@ -211,31 +211,31 @@ router.get('/correlation', async (req, res) => {
         symbols: symbolList,
         period: parseInt(period),
       },
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
 
     // Calculate correlation matrix (simplified)
-    const correlationMatrix = {};
+    const correlationMatrix = {}
     symbolList.forEach((symbol1) => {
-      correlationMatrix[symbol1] = {};
+      correlationMatrix[symbol1] = {}
       symbolList.forEach((symbol2) => {
         // Simplified correlation calculation (would need proper statistical calculation)
-        correlationMatrix[symbol1][symbol2] = symbol1 === symbol2 ? 1.0 : Math.random() * 2 - 1;
-      });
-    });
+        correlationMatrix[symbol1][symbol2] = symbol1 === symbol2 ? 1.0 : Math.random() * 2 - 1
+      })
+    })
 
     res.json({
       symbols: symbolList,
       period: parseInt(period),
       correlation_matrix: correlationMatrix,
       data: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error calculating correlation:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error calculating correlation:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -259,16 +259,16 @@ router.get('/correlation', async (req, res) => {
  *       200:
  *         description: Volatility data
  */
-router.get('/volatility', async (req, res) => {
+router.get("/volatility", async (req, res) => {
   try {
-    const { symbol, period = 30 } = req.query;
+    const { symbol, period = 30 } = req.query
 
-    let whereClause = '';
-    const queryParams = { period: parseInt(period) };
+    let whereClause = ""
+    const queryParams = { period: parseInt(period) }
 
     if (symbol) {
-      whereClause = 'AND s.symbol = {symbol:String}';
-      queryParams.symbol = symbol.toUpperCase();
+      whereClause = "AND s.symbol = {symbol:String}"
+      queryParams.symbol = symbol.toUpperCase()
     }
 
     const result = await clickhouse.query({
@@ -291,18 +291,18 @@ router.get('/volatility', async (req, res) => {
         LIMIT 50
       `,
       query_params: queryParams,
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       period: parseInt(period),
       data: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching volatility data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching volatility data:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -314,7 +314,7 @@ router.get('/volatility', async (req, res) => {
  *       200:
  *         description: Momentum indicators
  */
-router.get('/momentum', async (req, res) => {
+router.get("/momentum", async (req, res) => {
   try {
     const result = await clickhouse.query({
       query: `
@@ -339,15 +339,15 @@ router.get('/momentum', async (req, res) => {
         ORDER BY ABS(ti.rsi_14 - 50) DESC
         LIMIT 50
       `,
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching momentum data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching momentum data:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -365,16 +365,16 @@ router.get('/momentum', async (req, res) => {
  *       200:
  *         description: Sentiment data
  */
-router.get('/sentiment', async (req, res) => {
+router.get("/sentiment", async (req, res) => {
   try {
-    const { symbol } = req.query;
+    const { symbol } = req.query
 
-    let whereClause = '';
-    const queryParams = {};
+    let whereClause = ""
+    const queryParams = {}
 
     if (symbol) {
-      whereClause = 'AND s.symbol = {symbol:String}';
-      queryParams.symbol = symbol.toUpperCase();
+      whereClause = "AND s.symbol = {symbol:String}"
+      queryParams.symbol = symbol.toUpperCase()
     }
 
     const result = await clickhouse.query({
@@ -398,14 +398,14 @@ router.get('/sentiment', async (req, res) => {
         LIMIT 50
       `,
       query_params: queryParams,
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching sentiment data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching sentiment data:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
-module.exports = router;
+module.exports = router

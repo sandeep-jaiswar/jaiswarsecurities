@@ -40,8 +40,8 @@ Related to #(issue number)
 
 ## Screenshots (if applicable)
 
-| Before | After |
-|--------|-------|
+| Before         | After         |
+| -------------- | ------------- |
 | ![before](url) | ![after](url) |
 
 ## Checklist
@@ -97,6 +97,7 @@ Any additional information that reviewers should know.
 ---
 
 **Reviewer Guidelines:**
+
 - [ ] Code quality and style
 - [ ] Test coverage and quality
 - [ ] Security considerations

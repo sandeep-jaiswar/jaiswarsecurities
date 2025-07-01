@@ -1,22 +1,22 @@
-const express = require('express');
-const router = express.Router();
-const { createClient } = require('@clickhouse/client');
-const Redis = require('redis');
-const winston = require('winston');
+const express = require("express")
+const router = express.Router()
+const { createClient } = require("@clickhouse/client")
+const Redis = require("redis")
+const winston = require("winston")
 
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
-});
+})
 
 // Initialize ClickHouse connection
 const clickhouse = createClient({
-  url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
-  username: process.env.CLICKHOUSE_USER || 'stockuser',
-  password: process.env.CLICKHOUSE_PASSWORD || 'stockpass123',
-  database: process.env.CLICKHOUSE_DATABASE || 'stockdb',
-});
+  url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
+  username: process.env.CLICKHOUSE_USER || "stockuser",
+  password: process.env.CLICKHOUSE_PASSWORD || "stockpass123",
+  database: process.env.CLICKHOUSE_DATABASE || "stockdb",
+})
 
 /**
  * @swagger
@@ -56,9 +56,9 @@ const clickhouse = createClient({
  *       200:
  *         description: List of securities
  */
-router.get('/symbols', async (req, res) => {
+router.get("/symbols", async (req, res) => {
   try {
-    const { search, sector, exchange, limit = 100, offset = 0 } = req.query;
+    const { search, sector, exchange, limit = 100, offset = 0 } = req.query
 
     let query = `
       SELECT 
@@ -78,35 +78,35 @@ router.get('/symbols', async (req, res) => {
       LEFT JOIN industries ind ON c.industry_id = ind.id
       LEFT JOIN exchanges e ON s.exchange_id = e.id
       WHERE s.is_active = 1
-    `;
+    `
 
-    const queryParams = {};
+    const queryParams = {}
 
     if (search) {
-      query += ` AND (s.symbol ILIKE {search:String} OR s.name ILIKE {search:String} OR c.name ILIKE {search:String})`;
-      queryParams.search = `%${search}%`;
+      query += ` AND (s.symbol ILIKE {search:String} OR s.name ILIKE {search:String} OR c.name ILIKE {search:String})`
+      queryParams.search = `%${search}%`
     }
 
     if (sector) {
-      query += ` AND sec.code = {sector:String}`;
-      queryParams.sector = sector;
+      query += ` AND sec.code = {sector:String}`
+      queryParams.sector = sector
     }
 
     if (exchange) {
-      query += ` AND e.code = {exchange:String}`;
-      queryParams.exchange = exchange;
+      query += ` AND e.code = {exchange:String}`
+      queryParams.exchange = exchange
     }
 
-    query += ` ORDER BY s.symbol LIMIT {limit:UInt32} OFFSET {offset:UInt32}`;
-    queryParams.limit = parseInt(limit);
-    queryParams.offset = parseInt(offset);
+    query += ` ORDER BY s.symbol LIMIT {limit:UInt32} OFFSET {offset:UInt32}`
+    queryParams.limit = parseInt(limit)
+    queryParams.offset = parseInt(offset)
 
     const result = await clickhouse.query({
       query,
       query_params: queryParams,
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       data: data.data,
       pagination: {
@@ -114,12 +114,12 @@ router.get('/symbols', async (req, res) => {
         offset: parseInt(offset),
         total: data.data.length,
       },
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching symbols:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching symbols:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -138,9 +138,9 @@ router.get('/symbols', async (req, res) => {
  *       200:
  *         description: Real-time quote data
  */
-router.get('/symbols/:symbol/quote', async (req, res) => {
+router.get("/symbols/:symbol/quote", async (req, res) => {
   try {
-    const { symbol } = req.params;
+    const { symbol } = req.params
 
     const result = await clickhouse.query({
       query: `
@@ -167,19 +167,19 @@ router.get('/symbols/:symbol/quote', async (req, res) => {
         LIMIT 1
       `,
       query_params: { symbol: symbol.toUpperCase() },
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     if (data.data.length === 0) {
-      return res.status(404).json({ error: 'Symbol not found' });
+      return res.status(404).json({ error: "Symbol not found" })
     }
 
-    res.json(data.data[0]);
+    res.json(data.data[0])
   } catch (error) {
-    logger.error('Error fetching quote:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching quote:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -212,40 +212,40 @@ router.get('/symbols/:symbol/quote', async (req, res) => {
  *       200:
  *         description: Chart data with indicators
  */
-router.get('/symbols/:symbol/chart', async (req, res) => {
+router.get("/symbols/:symbol/chart", async (req, res) => {
   try {
-    const { symbol } = req.params;
-    const { period = '1M', interval = '1d' } = req.query;
+    const { symbol } = req.params
+    const { period = "1M", interval = "1d" } = req.query
 
     // Calculate date range based on period
-    const endDate = new Date();
-    const startDate = new Date();
+    const endDate = new Date()
+    const startDate = new Date()
 
     switch (period) {
-      case '1D':
-        startDate.setDate(endDate.getDate() - 1);
-        break;
-      case '5D':
-        startDate.setDate(endDate.getDate() - 5);
-        break;
-      case '1M':
-        startDate.setMonth(endDate.getMonth() - 1);
-        break;
-      case '3M':
-        startDate.setMonth(endDate.getMonth() - 3);
-        break;
-      case '6M':
-        startDate.setMonth(endDate.getMonth() - 6);
-        break;
-      case '1Y':
-        startDate.setFullYear(endDate.getFullYear() - 1);
-        break;
-      case '2Y':
-        startDate.setFullYear(endDate.getFullYear() - 2);
-        break;
-      case '5Y':
-        startDate.setFullYear(endDate.getFullYear() - 5);
-        break;
+      case "1D":
+        startDate.setDate(endDate.getDate() - 1)
+        break
+      case "5D":
+        startDate.setDate(endDate.getDate() - 5)
+        break
+      case "1M":
+        startDate.setMonth(endDate.getMonth() - 1)
+        break
+      case "3M":
+        startDate.setMonth(endDate.getMonth() - 3)
+        break
+      case "6M":
+        startDate.setMonth(endDate.getMonth() - 6)
+        break
+      case "1Y":
+        startDate.setFullYear(endDate.getFullYear() - 1)
+        break
+      case "2Y":
+        startDate.setFullYear(endDate.getFullYear() - 2)
+        break
+      case "5Y":
+        startDate.setFullYear(endDate.getFullYear() - 5)
+        break
     }
 
     const result = await clickhouse.query({
@@ -278,23 +278,23 @@ router.get('/symbols/:symbol/chart', async (req, res) => {
       `,
       query_params: {
         symbol: symbol.toUpperCase(),
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
+        startDate: startDate.toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
       },
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       symbol: symbol.toUpperCase(),
       period,
       interval,
       data: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching chart data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching chart data:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -320,21 +320,21 @@ router.get('/symbols/:symbol/chart', async (req, res) => {
  *       200:
  *         description: Market movers data
  */
-router.get('/movers', async (req, res) => {
+router.get("/movers", async (req, res) => {
   try {
-    const { type = 'gainers', limit = 20 } = req.query;
+    const { type = "gainers", limit = 20 } = req.query
 
-    let orderBy = '';
+    let orderBy = ""
     switch (type) {
-      case 'gainers':
-        orderBy = 'ts.price_change_percent DESC';
-        break;
-      case 'losers':
-        orderBy = 'ts.price_change_percent ASC';
-        break;
-      case 'active':
-        orderBy = 'o.volume DESC';
-        break;
+      case "gainers":
+        orderBy = "ts.price_change_percent DESC"
+        break
+      case "losers":
+        orderBy = "ts.price_change_percent ASC"
+        break
+      case "active":
+        orderBy = "o.volume DESC"
+        break
     }
 
     const result = await clickhouse.query({
@@ -357,18 +357,18 @@ router.get('/movers', async (req, res) => {
         LIMIT {limit:UInt32}
       `,
       query_params: { limit: parseInt(limit) },
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     res.json({
       type,
       data: data.data,
-    });
+    })
   } catch (error) {
-    logger.error('Error fetching movers:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching movers:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -380,7 +380,7 @@ router.get('/movers', async (req, res) => {
  *       200:
  *         description: Sector performance data
  */
-router.get('/sectors', async (req, res) => {
+router.get("/sectors", async (req, res) => {
   try {
     const result = await clickhouse.query({
       query: `
@@ -401,15 +401,15 @@ router.get('/sectors', async (req, res) => {
         GROUP BY sec.name, sec.code
         ORDER BY avg_change_percent DESC
       `,
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching sector performance:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching sector performance:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -421,50 +421,50 @@ router.get('/sectors', async (req, res) => {
  *       200:
  *         description: Market indices data
  */
-router.get('/indices', async (req, res) => {
+router.get("/indices", async (req, res) => {
   try {
     // Mock data for major indices
     const indices = [
       {
-        symbol: 'SPY',
-        name: 'SPDR S&P 500 ETF',
+        symbol: "SPY",
+        name: "SPDR S&P 500 ETF",
         price: 450.25,
         change: 2.15,
         changePercent: 0.48,
         volume: 45000000,
       },
       {
-        symbol: 'QQQ',
-        name: 'Invesco QQQ Trust',
+        symbol: "QQQ",
+        name: "Invesco QQQ Trust",
         price: 385.5,
         change: 3.2,
         changePercent: 0.84,
         volume: 32000000,
       },
       {
-        symbol: 'DIA',
-        name: 'SPDR Dow Jones Industrial Average ETF',
+        symbol: "DIA",
+        name: "SPDR Dow Jones Industrial Average ETF",
         price: 340.75,
         change: 1.85,
         changePercent: 0.55,
         volume: 15000000,
       },
       {
-        symbol: 'IWM',
-        name: 'iShares Russell 2000 ETF',
+        symbol: "IWM",
+        name: "iShares Russell 2000 ETF",
         price: 195.3,
         change: -0.85,
         changePercent: -0.43,
         volume: 28000000,
       },
-    ];
+    ]
 
-    res.json(indices);
+    res.json(indices)
   } catch (error) {
-    logger.error('Error fetching indices:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching indices:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -483,9 +483,9 @@ router.get('/indices', async (req, res) => {
  *       200:
  *         description: Fundamental data
  */
-router.get('/symbols/:symbol/fundamentals', async (req, res) => {
+router.get("/symbols/:symbol/fundamentals", async (req, res) => {
   try {
-    const { symbol } = req.params;
+    const { symbol } = req.params
 
     const result = await clickhouse.query({
       query: `
@@ -520,18 +520,18 @@ router.get('/symbols/:symbol/fundamentals', async (req, res) => {
         LIMIT 1
       `,
       query_params: { symbol: symbol.toUpperCase() },
-    });
+    })
 
-    const data = await result.json();
+    const data = await result.json()
     if (data.data.length === 0) {
-      return res.status(404).json({ error: 'Symbol not found' });
+      return res.status(404).json({ error: "Symbol not found" })
     }
 
-    res.json(data.data[0]);
+    res.json(data.data[0])
   } catch (error) {
-    logger.error('Error fetching fundamentals:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching fundamentals:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
-module.exports = router;
+module.exports = router

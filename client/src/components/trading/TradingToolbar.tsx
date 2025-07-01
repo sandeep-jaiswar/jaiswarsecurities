@@ -1,7 +1,7 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { MagnifyingGlassIcon, ChartBarIcon, CogIcon } from '@heroicons/react/24/outline'
+import { ChartBarIcon, CogIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline"
+import { useState } from "react"
 
 interface TradingToolbarProps {
   activeSymbol: string
@@ -10,19 +10,24 @@ interface TradingToolbarProps {
   onTimeframeChange: (timeframe: string) => void
 }
 
-export function TradingToolbar({ 
-  activeSymbol, 
-  onSymbolChange, 
-  timeframe, 
-  onTimeframeChange 
-}: TradingToolbarProps) {
-  const [searchQuery, setSearchQuery] = useState('')
+export function TradingToolbar({ timeframe, onTimeframeChange }: TradingToolbarProps) {
+  const [searchQuery, setSearchQuery] = useState("")
 
-  const timeframes = ['1m', '5m', '15m', '1h', '4h', 'Daily', 'Weekly', 'Monthly']
-  const tools = ['Auto Fib', 'Trends', 'Indicators', 'Candle Patterns', 'Chart Patterns', 'Heatmaps', 'Other data', 'Alerts&book', 'Visual Scripts']
+  const timeframes = ["1m", "5m", "15m", "1h", "4h", "Daily", "Weekly", "Monthly"]
+  const tools = [
+    "Auto Fib",
+    "Trends",
+    "Indicators",
+    "Candle Patterns",
+    "Chart Patterns",
+    "Heatmaps",
+    "Other data",
+    "Alerts&book",
+    "Visual Scripts",
+  ]
 
   return (
-    <div className="bg-terminal-panel border-b border-terminal-border p-2">
+    <div className="border-b border-terminal-border bg-terminal-panel p-2">
       <div className="flex items-center justify-between">
         {/* Left - Symbol and Tools */}
         <div className="flex items-center space-x-4">
@@ -32,7 +37,7 @@ export function TradingToolbar({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Symbol..."
-              className="bg-terminal-bg border border-terminal-border rounded px-2 py-1 text-xs w-20"
+              className="w-20 rounded border border-terminal-border bg-terminal-bg px-2 py-1 text-xs"
             />
             <MagnifyingGlassIcon className="h-4 w-4 text-terminal-muted" />
           </div>
@@ -41,7 +46,7 @@ export function TradingToolbar({
             {tools.map((tool) => (
               <button
                 key={tool}
-                className="px-2 py-1 text-xs bg-terminal-border hover:bg-terminal-accent hover:text-black rounded"
+                className="rounded bg-terminal-border px-2 py-1 text-xs hover:bg-terminal-accent hover:text-black"
               >
                 {tool}
               </button>
@@ -56,10 +61,10 @@ export function TradingToolbar({
               <button
                 key={tf}
                 onClick={() => onTimeframeChange(tf)}
-                className={`px-2 py-1 text-xs rounded ${
+                className={`rounded px-2 py-1 text-xs ${
                   timeframe === tf
-                    ? 'bg-terminal-accent text-black'
-                    : 'bg-terminal-border hover:bg-terminal-accent hover:text-black'
+                    ? "bg-terminal-accent text-black"
+                    : "bg-terminal-border hover:bg-terminal-accent hover:text-black"
                 }`}
               >
                 {tf}

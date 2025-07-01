@@ -7,6 +7,7 @@ This directory contains the complete database schema for a comprehensive stock s
 The database is organized into 9 main schema files:
 
 ### 1. Core Tables (`01-core-tables.sql`)
+
 - **Companies**: Master company information with detailed business data
 - **Securities**: Individual securities (stocks, bonds, ETFs) with trading information
 - **Exchanges**: Global stock exchanges with trading hours and metadata
@@ -14,6 +15,7 @@ The database is organized into 9 main schema files:
 - **Sectors/Industries**: Comprehensive industry classification
 
 ### 2. Market Data (`02-market-data.sql`)
+
 - **OHLCV Data**: Daily and intraday price/volume data with quality metrics
 - **Price Adjustments**: Stock splits, dividends, and other corporate actions
 - **Trading Statistics**: Daily trading metrics and market activity
@@ -21,12 +23,14 @@ The database is organized into 9 main schema files:
 - **Volume Profile**: Volume distribution by price levels
 
 ### 3. Technical Analysis (`03-technical-indicators.sql`)
+
 - **Technical Indicators**: 30+ technical indicators (SMA, EMA, RSI, MACD, etc.)
 - **Chart Patterns**: Automated pattern detection with confidence scores
 - **Support/Resistance**: Key price levels with strength analysis
 - **Custom Indicators**: User-defined technical indicators
 
 ### 4. Financial Data (`04-financial-data.sql`)
+
 - **Financial Statements**: Income statements, balance sheets, cash flow
 - **Financial Ratios**: 50+ calculated financial ratios
 - **Analyst Estimates**: Consensus estimates and revisions
@@ -34,6 +38,7 @@ The database is organized into 9 main schema files:
 - **Financial Periods**: Flexible reporting period management
 
 ### 5. News and Events (`05-news-events.sql`)
+
 - **News Articles**: Comprehensive news with sentiment analysis
 - **Corporate Events**: Earnings, dividends, M&A, regulatory events
 - **Economic Events**: Economic indicators and market-moving events
@@ -41,6 +46,7 @@ The database is organized into 9 main schema files:
 - **News Sentiment**: AI-powered sentiment analysis
 
 ### 6. Stakeholders and Ownership (`06-stakeholders-ownership.sql`)
+
 - **Stakeholders**: Institutional and individual investors
 - **Ownership Records**: Detailed ownership positions and changes
 - **Insider Transactions**: Executive and insider trading activity
@@ -48,6 +54,7 @@ The database is organized into 9 main schema files:
 - **Compensation**: Executive compensation analysis
 
 ### 7. Screening and Backtesting (`07-screening-backtesting.sql`)
+
 - **Screens**: Flexible screening system with custom criteria
 - **Backtesting**: Comprehensive strategy backtesting framework
 - **Alerts**: Price and indicator alerts with history
@@ -55,6 +62,7 @@ The database is organized into 9 main schema files:
 - **Performance Analytics**: Screen and strategy performance tracking
 
 ### 8. User System (`08-user-system.sql`)
+
 - **Users**: Complete user management with authentication
 - **Roles/Permissions**: Granular permission system
 - **User Preferences**: Customizable user settings
@@ -62,6 +70,7 @@ The database is organized into 9 main schema files:
 - **API Keys**: Programmatic access management
 
 ### 9. Seed Data (`09-seed-data.sql`)
+
 - Reference data for countries, currencies, exchanges
 - Sample companies and securities
 - Default roles, permissions, and system configuration
@@ -70,6 +79,7 @@ The database is organized into 9 main schema files:
 ## Key Features
 
 ### Bloomberg-Level Functionality
+
 - **Real-time and Historical Data**: Complete market data infrastructure
 - **Financial Analysis**: Comprehensive fundamental and technical analysis
 - **News Integration**: Multi-source news with sentiment analysis
@@ -79,6 +89,7 @@ The database is organized into 9 main schema files:
 - **Risk Management**: Portfolio and position risk analysis
 
 ### Scalability and Performance
+
 - **Partitioning**: Large tables partitioned by date for performance
 - **Indexing**: Comprehensive indexing strategy for fast queries
 - **Data Quality**: Built-in data quality scoring and validation
@@ -86,12 +97,14 @@ The database is organized into 9 main schema files:
 - **API Rate Limiting**: Built-in rate limiting for external data sources
 
 ### Data Sources Integration
+
 - **Multiple Providers**: Support for Alpha Vantage, Yahoo Finance, Polygon, etc.
 - **Data Quality Tracking**: Source reliability and accuracy scoring
 - **Fallback Systems**: Multiple data source redundancy
 - **Real-time Updates**: Streaming data integration capabilities
 
 ### Compliance and Security
+
 - **Audit Trail**: Complete audit logging for regulatory compliance
 - **User Permissions**: Granular role-based access control
 - **Data Privacy**: GDPR-compliant user data management
@@ -100,6 +113,7 @@ The database is organized into 9 main schema files:
 ## Usage Examples
 
 ### Running a Stock Screen
+
 ```sql
 -- Find undervalued tech stocks with strong momentum
 SELECT s.symbol, c.name, sr.score
@@ -113,6 +127,7 @@ LIMIT 20;
 ```
 
 ### Analyzing Financial Performance
+
 ```sql
 -- Get latest financial ratios for a company
 SELECT fr.*, fp.fiscal_year, fp.fiscal_quarter
@@ -124,9 +139,10 @@ LIMIT 1;
 ```
 
 ### Tracking Insider Activity
+
 ```sql
 -- Recent insider transactions for a stock
-SELECT s.name, it.transaction_date, it.transaction_type, 
+SELECT s.name, it.transaction_date, it.transaction_type,
        it.shares_transacted, it.price_per_share, it.total_value
 FROM insider_transactions it
 JOIN stakeholders s ON it.stakeholder_id = s.id
@@ -136,6 +152,7 @@ ORDER BY it.transaction_date DESC;
 ```
 
 ### News Sentiment Analysis
+
 ```sql
 -- Recent news sentiment for a company
 SELECT na.title, ns.overall_sentiment, ns.sentiment_label, na.published_at
@@ -157,12 +174,14 @@ ORDER BY na.published_at DESC;
 ## Maintenance
 
 ### Regular Tasks
+
 - **Update Statistics**: Run ANALYZE on large tables weekly
 - **Partition Management**: Create new partitions for time-series data
 - **Index Maintenance**: Monitor and rebuild indexes as needed
 - **Data Cleanup**: Archive old data based on retention policies
 
 ### Monitoring
+
 - **Query Performance**: Monitor slow queries and optimize
 - **Storage Usage**: Track table and index sizes
 - **Data Quality**: Monitor data source reliability scores

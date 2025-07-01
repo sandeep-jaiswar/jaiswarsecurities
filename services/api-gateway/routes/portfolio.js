@@ -1,28 +1,28 @@
-const express = require('express');
-const router = express.Router();
-const { createClient } = require('@clickhouse/client');
-const winston = require('winston');
+const express = require("express")
+const router = express.Router()
+const { createClient } = require("@clickhouse/client")
+const winston = require("winston")
 
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
-});
+})
 
 // Initialize ClickHouse connection
 const clickhouse = createClient({
-  url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
-  username: process.env.CLICKHOUSE_USER || 'stockuser',
-  password: process.env.CLICKHOUSE_PASSWORD || 'stockpass123',
-  database: process.env.CLICKHOUSE_DATABASE || 'stockdb',
-});
+  url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
+  username: process.env.CLICKHOUSE_USER || "stockuser",
+  password: process.env.CLICKHOUSE_PASSWORD || "stockpass123",
+  database: process.env.CLICKHOUSE_DATABASE || "stockdb",
+})
 
 // Authentication middleware (simplified)
 const authenticateToken = (req, res, next) => {
   // In a real implementation, verify JWT token
-  req.user = { id: 1, username: 'demo' }; // Mock user
-  next();
-};
+  req.user = { id: 1, username: "demo" } // Mock user
+  next()
+}
 
 /**
  * @swagger
@@ -36,7 +36,7 @@ const authenticateToken = (req, res, next) => {
  *       200:
  *         description: User watchlists
  */
-router.get('/watchlists', authenticateToken, async (req, res) => {
+router.get("/watchlists", authenticateToken, async (req, res) => {
   try {
     const result = await clickhouse.query({
       query: `
@@ -54,15 +54,15 @@ router.get('/watchlists', authenticateToken, async (req, res) => {
         ORDER BY w.created_at DESC
       `,
       query_params: { username: req.user.username },
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching watchlists:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching watchlists:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -83,9 +83,9 @@ router.get('/watchlists', authenticateToken, async (req, res) => {
  *       200:
  *         description: Watchlist symbols with current data
  */
-router.get('/watchlists/:id/symbols', authenticateToken, async (req, res) => {
+router.get("/watchlists/:id/symbols", authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
     const result = await clickhouse.query({
       query: `
@@ -110,15 +110,15 @@ router.get('/watchlists/:id/symbols', authenticateToken, async (req, res) => {
         ORDER BY ws.added_date DESC
       `,
       query_params: { watchlistId: parseInt(id) },
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching watchlist symbols:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching watchlist symbols:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -145,36 +145,36 @@ router.get('/watchlists/:id/symbols', authenticateToken, async (req, res) => {
  *       201:
  *         description: Watchlist created
  */
-router.post('/watchlists', authenticateToken, async (req, res) => {
+router.post("/watchlists", authenticateToken, async (req, res) => {
   try {
-    const { name, description, is_public = false } = req.body;
-    const watchlistId = Date.now();
+    const { name, description, is_public = false } = req.body
+    const watchlistId = Date.now()
 
     await clickhouse.insert({
-      table: 'watchlists',
+      table: "watchlists",
       values: [
         {
           id: watchlistId,
           name,
-          description: description || '',
+          description: description || "",
           created_by: req.user.username,
           is_public: is_public ? 1 : 0,
         },
       ],
-    });
+    })
 
     res.status(201).json({
       id: watchlistId,
       name,
       description,
       is_public,
-      message: 'Watchlist created successfully',
-    });
+      message: "Watchlist created successfully",
+    })
   } catch (error) {
-    logger.error('Error creating watchlist:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error creating watchlist:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -210,26 +210,26 @@ router.post('/watchlists', authenticateToken, async (req, res) => {
  *       201:
  *         description: Symbol added to watchlist
  */
-router.post('/watchlists/:id/symbols', authenticateToken, async (req, res) => {
+router.post("/watchlists/:id/symbols", authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { symbol, target_price, stop_loss, notes } = req.body;
+    const { id } = req.params
+    const { symbol, target_price, stop_loss, notes } = req.body
 
     // Get security ID
     const securityResult = await clickhouse.query({
-      query: 'SELECT id FROM securities WHERE symbol = {symbol:String}',
+      query: "SELECT id FROM securities WHERE symbol = {symbol:String}",
       query_params: { symbol: symbol.toUpperCase() },
-    });
+    })
 
-    const securities = await securityResult.json();
+    const securities = await securityResult.json()
     if (securities.data.length === 0) {
-      return res.status(404).json({ error: 'Symbol not found' });
+      return res.status(404).json({ error: "Symbol not found" })
     }
 
-    const symbolId = securities.data[0].id;
+    const symbolId = securities.data[0].id
 
     await clickhouse.insert({
-      table: 'watchlist_symbols',
+      table: "watchlist_symbols",
       values: [
         {
           id: Date.now(),
@@ -237,20 +237,20 @@ router.post('/watchlists/:id/symbols', authenticateToken, async (req, res) => {
           symbol_id: symbolId,
           target_price: target_price || null,
           stop_loss: stop_loss || null,
-          notes: notes || '',
+          notes: notes || "",
         },
       ],
-    });
+    })
 
     res.status(201).json({
-      message: 'Symbol added to watchlist',
+      message: "Symbol added to watchlist",
       symbol: symbol.toUpperCase(),
-    });
+    })
   } catch (error) {
-    logger.error('Error adding symbol to watchlist:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error adding symbol to watchlist:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -264,7 +264,7 @@ router.post('/watchlists/:id/symbols', authenticateToken, async (req, res) => {
  *       200:
  *         description: User alerts
  */
-router.get('/alerts', authenticateToken, async (req, res) => {
+router.get("/alerts", authenticateToken, async (req, res) => {
   try {
     const result = await clickhouse.query({
       query: `
@@ -287,15 +287,15 @@ router.get('/alerts', authenticateToken, async (req, res) => {
         LIMIT 100
       `,
       query_params: { username: req.user.username },
-    });
+    })
 
-    const data = await result.json();
-    res.json(data.data);
+    const data = await result.json()
+    res.json(data.data)
   } catch (error) {
-    logger.error('Error fetching alerts:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error fetching alerts:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
 /**
  * @swagger
@@ -326,26 +326,26 @@ router.get('/alerts', authenticateToken, async (req, res) => {
  *       201:
  *         description: Alert created
  */
-router.post('/alerts', authenticateToken, async (req, res) => {
+router.post("/alerts", authenticateToken, async (req, res) => {
   try {
-    const { symbol, alert_type, condition_type, target_value } = req.body;
+    const { symbol, alert_type, condition_type, target_value } = req.body
 
     // Get security ID
     const securityResult = await clickhouse.query({
-      query: 'SELECT id FROM securities WHERE symbol = {symbol:String}',
+      query: "SELECT id FROM securities WHERE symbol = {symbol:String}",
       query_params: { symbol: symbol.toUpperCase() },
-    });
+    })
 
-    const securities = await securityResult.json();
+    const securities = await securityResult.json()
     if (securities.data.length === 0) {
-      return res.status(404).json({ error: 'Symbol not found' });
+      return res.status(404).json({ error: "Symbol not found" })
     }
 
-    const symbolId = securities.data[0].id;
-    const alertId = Date.now();
+    const symbolId = securities.data[0].id
+    const alertId = Date.now()
 
     await clickhouse.insert({
-      table: 'alerts',
+      table: "alerts",
       values: [
         {
           id: alertId,
@@ -358,7 +358,7 @@ router.post('/alerts', authenticateToken, async (req, res) => {
           created_by: req.user.username,
         },
       ],
-    });
+    })
 
     res.status(201).json({
       id: alertId,
@@ -366,12 +366,12 @@ router.post('/alerts', authenticateToken, async (req, res) => {
       alert_type,
       condition_type,
       target_value,
-      message: 'Alert created successfully',
-    });
+      message: "Alert created successfully",
+    })
   } catch (error) {
-    logger.error('Error creating alert:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error("Error creating alert:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
 
-module.exports = router;
+module.exports = router

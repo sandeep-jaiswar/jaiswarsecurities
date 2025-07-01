@@ -27,12 +27,14 @@ A comprehensive stock screening and analytics system built with ClickHouse, feat
 ## 🚀 Features
 
 ### 🔥 **ClickHouse-Powered Performance**
+
 - **Columnar Storage**: Optimized for time-series financial data
 - **Real-time Analytics**: Sub-second query performance on billions of records
 - **Partitioned Tables**: Efficient data organization by date
 - **Compression**: 10x better compression than traditional databases
 
 ### 📊 **Bloomberg-Level Functionality**
+
 - **Real-time Market Data**: Live quotes, charts, and market depth
 - **Advanced Analytics**: Correlation analysis, volatility tracking, momentum indicators
 - **Technical Indicators**: 30+ indicators (SMA, EMA, RSI, MACD, Bollinger Bands)
@@ -40,12 +42,14 @@ A comprehensive stock screening and analytics system built with ClickHouse, feat
 - **Portfolio Management**: Watchlists, alerts, and performance tracking
 
 ### 🔍 **Professional Screening**
+
 - **Custom Screens**: Build complex screening criteria
 - **Real-time Results**: Instant screening with live market data
 - **Backtesting**: Test strategies on historical data
 - **Risk Analysis**: Comprehensive risk metrics and stress testing
 
 ### 🎯 **Trading Infrastructure**
+
 - **Order Book Data**: Real-time bid/ask spreads and market depth
 - **Options Chain**: Complete options data and Greeks
 - **Insider Trading**: Track insider transactions and institutional holdings
@@ -60,6 +64,7 @@ A comprehensive stock screening and analytics system built with ClickHouse, feat
 ## 🛠️ Quick Start
 
 ### 1. Clone and Setup
+
 ```bash
 git clone <repository-url>
 cd stock-screening-system
@@ -68,6 +73,7 @@ cp .env.local .env
 ```
 
 ### 2. Start the System
+
 ```bash
 # Using Make (recommended)
 make -f Makefile.local setup
@@ -77,6 +83,7 @@ docker-compose -f docker-compose.local.yml up -d
 ```
 
 ### 3. Access Services
+
 - **Next.js Client**: http://localhost:3001 (Bloomberg Terminal UI)
 - **API Gateway**: http://localhost:3000
 - **API Documentation**: http://localhost:3000/api-docs
@@ -86,9 +93,11 @@ docker-compose -f docker-compose.local.yml up -d
 ## 🔧 ClickHouse Configuration
 
 ### Database Schema
+
 The system uses an optimized ClickHouse schema designed for financial data:
 
 #### **Core Tables:**
+
 - `companies` - Company master data
 - `securities` - Individual securities (stocks, ETFs, etc.)
 - `ohlcv_daily` - Daily price/volume data (partitioned by month)
@@ -96,12 +105,14 @@ The system uses an optimized ClickHouse schema designed for financial data:
 - `technical_indicators` - Technical analysis indicators
 
 #### **Analytics Tables:**
+
 - `news_articles` - Financial news (partitioned by month)
 - `news_sentiment` - AI sentiment analysis
 - `backtests` - Backtesting results
 - `backtest_trades` - Individual trade records
 
 #### **Performance Optimizations:**
+
 ```sql
 -- Partitioned by date for optimal performance
 PARTITION BY toYYYYMM(trade_date)
@@ -112,9 +123,10 @@ SETTINGS index_granularity = 8192
 ```
 
 ### Sample Queries
+
 ```sql
 -- Get latest prices with technical indicators
-SELECT 
+SELECT
   s.symbol,
   o.close_price,
   ti.rsi_14,
@@ -123,7 +135,7 @@ SELECT
   ti.bb_lower
 FROM securities s
 JOIN ohlcv_daily o ON s.id = o.security_id
-LEFT JOIN technical_indicators ti ON s.id = ti.security_id 
+LEFT JOIN technical_indicators ti ON s.id = ti.security_id
   AND o.trade_date = ti.trade_date
 WHERE o.trade_date = today()
 ORDER BY o.volume DESC
@@ -131,7 +143,7 @@ LIMIT 20;
 
 -- Market movers analysis
 WITH price_changes AS (
-  SELECT 
+  SELECT
     s.symbol,
     o.close_price,
     LAG(o.close_price) OVER (PARTITION BY s.id ORDER BY o.trade_date) as prev_close,
@@ -150,6 +162,7 @@ LIMIT 10;
 ## 📊 API Endpoints
 
 ### **Market Data**
+
 ```bash
 GET /api/market/symbols                    # Symbol search
 GET /api/market/symbols/{symbol}/quote     # Real-time quote
@@ -158,6 +171,7 @@ GET /api/market/movers                     # Market movers
 ```
 
 ### **Analytics**
+
 ```bash
 GET /api/analytics/market-overview         # Market overview
 GET /api/analytics/heatmap                 # Sector heatmap
@@ -166,6 +180,7 @@ GET /api/analytics/volatility              # Volatility metrics
 ```
 
 ### **Research**
+
 ```bash
 GET /api/research/news                     # News with sentiment
 GET /api/research/earnings                 # Earnings calendar
@@ -173,6 +188,7 @@ GET /api/research/insider-trading          # Insider activity
 ```
 
 ### **Trading**
+
 ```bash
 GET /api/trading/orderbook/{symbol}        # Order book depth
 GET /api/trading/options/{symbol}          # Options chain
@@ -181,6 +197,7 @@ GET /api/trading/options/{symbol}          # Options chain
 ## 🔍 Screening & Backtesting
 
 ### Custom Screening
+
 ```javascript
 // Example screening criteria
 {
@@ -192,6 +209,7 @@ GET /api/trading/options/{symbol}          # Options chain
 ```
 
 ### Backtesting Strategies
+
 ```javascript
 // SMA Crossover Strategy
 {
@@ -210,6 +228,7 @@ GET /api/trading/options/{symbol}          # Options chain
 The Next.js client provides a professional Bloomberg Terminal-style interface:
 
 ### **Key Features:**
+
 - **Dark Theme**: Professional trading interface
 - **Real-time Updates**: Live market data via WebSocket
 - **Multiple Panels**: Chart, watchlist, news, order book
@@ -217,6 +236,7 @@ The Next.js client provides a professional Bloomberg Terminal-style interface:
 - **Responsive Design**: Works on desktop and mobile
 
 ### **Terminal Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Market Overview                       │
@@ -233,6 +253,7 @@ The Next.js client provides a professional Bloomberg Terminal-style interface:
 ## 🔧 Development
 
 ### Local Development
+
 ```bash
 # Start all services
 make -f Makefile.local start
@@ -248,6 +269,7 @@ make -f Makefile.local clean
 ```
 
 ### Health Checks
+
 ```bash
 # Check all services
 make -f Makefile.local health
@@ -259,12 +281,14 @@ make -f Makefile.local api-test
 ## 📊 Performance Benchmarks
 
 ### ClickHouse Performance
+
 - **Query Speed**: 100M+ records in <1 second
 - **Compression**: 90% compression ratio
 - **Throughput**: 1M+ inserts per second
 - **Storage**: 10TB+ data capacity
 
 ### System Requirements
+
 - **Minimum**: 4GB RAM, 2 CPU cores
 - **Recommended**: 16GB RAM, 8 CPU cores
 - **Storage**: SSD recommended for optimal performance
@@ -272,11 +296,13 @@ make -f Makefile.local api-test
 ## 🔒 Security
 
 ### Authentication
+
 - JWT-based authentication
 - bcrypt password hashing
 - Role-based access control
 
 ### API Security
+
 - Rate limiting (1000 req/15min)
 - CORS protection
 - Helmet.js security headers
@@ -285,6 +311,7 @@ make -f Makefile.local api-test
 ## 🚀 Deployment
 
 ### Production Deployment
+
 ```bash
 # Update environment
 cp .env.prod .env
@@ -294,14 +321,15 @@ docker-compose -f docker-compose.yml up -d
 ```
 
 ### Scaling ClickHouse
+
 ```yaml
 # ClickHouse cluster configuration
 clickhouse-01:
   image: clickhouse/clickhouse-server:23.8
-  
+
 clickhouse-02:
   image: clickhouse/clickhouse-server:23.8
-  
+
 clickhouse-03:
   image: clickhouse/clickhouse-server:23.8
 ```
@@ -309,12 +337,14 @@ clickhouse-03:
 ## 📈 Monitoring
 
 ### ClickHouse Monitoring
+
 - Query performance metrics
 - Storage utilization
 - Memory usage
 - Replication status
 
 ### Application Monitoring
+
 - API response times
 - Error rates
 - WebSocket connections

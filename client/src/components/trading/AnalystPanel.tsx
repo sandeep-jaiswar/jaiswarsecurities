@@ -1,7 +1,7 @@
-'use client'
+"use client"
 
-import { useQuery } from 'react-query'
-import { apiClient } from '@/lib/api'
+import { useQuery } from "react-query"
+import { apiClient } from "@/lib/api"
 
 interface AnalystPanelProps {
   symbol: string
@@ -9,7 +9,7 @@ interface AnalystPanelProps {
 
 export function AnalystPanel({ symbol }: AnalystPanelProps) {
   const { data: analystData, isLoading } = useQuery(
-    ['analyst-estimates', symbol],
+    ["analyst-estimates", symbol],
     () => apiClient.get(`/api/trading/analyst-estimates/${symbol}`),
     {
       refetchInterval: 60000,
@@ -18,26 +18,26 @@ export function AnalystPanel({ symbol }: AnalystPanelProps) {
 
   const mockData = {
     reports: [
-      { period: '2w4 4wk', rank: '13wk', growth: '6mo', rating: '1yr' },
-      { period: 'Ranked "Buy"', rank: '5', growth: '1', rating: '4' },
-      { period: 'Ranked "Hold"', rank: '6', growth: '1', rating: '17' },
-      { period: 'Ranked "Sell"', rank: '1', growth: '1', rating: '3' },
+      { period: "2w4 4wk", rank: "13wk", growth: "6mo", rating: "1yr" },
+      { period: 'Ranked "Buy"', rank: "5", growth: "1", rating: "4" },
+      { period: 'Ranked "Hold"', rank: "6", growth: "1", rating: "17" },
+      { period: 'Ranked "Sell"', rank: "1", growth: "1", rating: "3" },
     ],
     estimates: [
-      { metric: 'Windbush', value: 'buy' },
-      { metric: 'JP Morgan', value: 'buy' },
-      { metric: 'Deutsche', value: 'buy' },
-    ]
+      { metric: "Windbush", value: "buy" },
+      { metric: "JP Morgan", value: "buy" },
+      { metric: "Deutsche", value: "buy" },
+    ],
   }
 
   return (
-    <div className="bg-terminal-panel border border-terminal-border h-48">
+    <div className="h-48 border border-terminal-border bg-terminal-panel">
       <div className="border-b border-terminal-border p-2">
         <h3 className="text-xs font-bold text-terminal-accent">Analyst Estimates, {symbol}</h3>
       </div>
-      
+
       <div className="p-2">
-        <div className="grid grid-cols-4 gap-1 text-xs mb-4">
+        <div className="mb-4 grid grid-cols-4 gap-1 text-xs">
           <div className="text-terminal-muted">Reports within...</div>
           <div className="text-terminal-muted">2w4 4wk</div>
           <div className="text-terminal-muted">13wk 6mo</div>

@@ -23,7 +23,13 @@
     "nodemon": "^3.0.1",
     "jest": "^29.7.0"
   },
-  "keywords": ["stock", "data", "ingestion", "kafka", "clickhouse"],
+  "keywords": [
+    "stock",
+    "data",
+    "ingestion",
+    "kafka",
+    "clickhouse"
+  ],
   "author": "Stock Screening System",
   "license": "MIT"
 }

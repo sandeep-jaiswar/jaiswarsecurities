@@ -1,49 +1,45 @@
-'use client'
+"use client"
 
-import { useQuery } from 'react-query'
-import { apiClient } from '@/lib/api'
+import { useQuery } from "react-query"
+import { apiClient } from "@/lib/api"
 
 export function BacktestPanel() {
   const { data: backtestData, isLoading } = useQuery(
-    'backtest-performance',
-    () => apiClient.get('/api/trading/backtest-performance'),
+    "backtest-performance",
+    () => apiClient.get("/api/trading/backtest-performance"),
     {
       refetchInterval: 10000,
     }
   )
 
   const mockData = {
-    strategy: 'Keltner Channel Buy X Up, Sell Y Down',
+    strategy: "Keltner Channel Buy X Up, Sell Y Down",
     performance: {
-      totalReturn: '+44.49%',
-      annualReturn: '+104.2%',
-      maxDrawdown: '-41.5%',
-      sharpeRatio: '1.39%',
-      winRate: '75%',
-      profitFactor: '2.02%'
+      totalReturn: "+44.49%",
+      annualReturn: "+104.2%",
+      maxDrawdown: "-41.5%",
+      sharpeRatio: "1.39%",
+      winRate: "75%",
+      profitFactor: "2.02%",
     },
     positions: [
-      { symbol: 'AAPL.O', change: '+2K 4h', status: 'buy' },
-      { symbol: 'Wagner Susan', change: 'Oct Ex.(n)', status: 'buy' },
-      { symbol: 'Roth Russell D', change: 'Oct Ex.(n)', status: 'buy' },
-    ]
+      { symbol: "AAPL.O", change: "+2K 4h", status: "buy" },
+      { symbol: "Wagner Susan", change: "Oct Ex.(n)", status: "buy" },
+      { symbol: "Roth Russell D", change: "Oct Ex.(n)", status: "buy" },
+    ],
   }
 
   return (
-    <div className="bg-terminal-panel border border-terminal-border h-full">
+    <div className="h-full border border-terminal-border bg-terminal-panel">
       <div className="border-b border-terminal-border p-2">
-        <h3 className="text-xs font-bold text-terminal-accent">
-          Backtesting & Strategy Performance
-        </h3>
+        <h3 className="text-xs font-bold text-terminal-accent">Backtesting & Strategy Performance</h3>
       </div>
-      
-      <div className="grid grid-cols-3 gap-4 p-4 h-full">
+
+      <div className="grid h-full grid-cols-3 gap-4 p-4">
         {/* Strategy Performance */}
         <div className="space-y-4">
           <div>
-            <h4 className="text-xs font-bold text-terminal-accent mb-2">
-              {mockData.strategy}
-            </h4>
+            <h4 className="mb-2 text-xs font-bold text-terminal-accent">{mockData.strategy}</h4>
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
                 <span className="text-terminal-muted">Total Return:</span>
@@ -75,20 +71,20 @@ export function BacktestPanel() {
 
         {/* Equity Curve Chart */}
         <div className="border border-terminal-border">
-          <div className="p-2 border-b border-terminal-border">
+          <div className="border-b border-terminal-border p-2">
             <h4 className="text-xs font-bold text-terminal-accent">Equity Curve</h4>
           </div>
-          <div className="h-32 flex items-center justify-center">
+          <div className="flex h-32 items-center justify-center">
             <div className="text-xs text-terminal-muted">Performance Chart</div>
           </div>
         </div>
 
         {/* Insider Ownership */}
         <div>
-          <div className="p-2 border-b border-terminal-border">
+          <div className="border-b border-terminal-border p-2">
             <h4 className="text-xs font-bold text-terminal-accent">Insider ownership diagram</h4>
           </div>
-          <div className="p-2 space-y-1 text-xs">
+          <div className="space-y-1 p-2 text-xs">
             {mockData.positions.map((position, index) => (
               <div key={index} className="flex justify-between">
                 <span className="text-terminal-text">{position.symbol}</span>

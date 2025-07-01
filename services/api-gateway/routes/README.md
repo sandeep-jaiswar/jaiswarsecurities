@@ -5,6 +5,7 @@ This directory contains modular route handlers for the Bloomberg-style Stock Ter
 ## Route Structure
 
 ### Authentication Routes (`/api/auth`)
+
 - `POST /register` - User registration
 - `POST /login` - User authentication
 - `POST /logout` - User logout
@@ -12,6 +13,7 @@ This directory contains modular route handlers for the Bloomberg-style Stock Ter
 - `PUT /profile` - Update user profile
 
 ### Market Data Routes (`/api/market`)
+
 - `GET /symbols` - List symbols with filtering
 - `GET /symbols/{symbol}/quote` - Real-time quote
 - `GET /symbols/{symbol}/chart` - Chart data with indicators
@@ -23,6 +25,7 @@ This directory contains modular route handlers for the Bloomberg-style Stock Ter
 - `GET /commodities` - Commodity prices
 
 ### Analytics Routes (`/api/analytics`)
+
 - `GET /market-overview` - Comprehensive market overview
 - `GET /heatmap` - Market heatmap data
 - `GET /correlation` - Correlation analysis
@@ -31,6 +34,7 @@ This directory contains modular route handlers for the Bloomberg-style Stock Ter
 - `GET /sentiment` - Market sentiment analysis
 
 ### Portfolio Routes (`/api/portfolio`)
+
 - `GET /watchlists` - User watchlists
 - `POST /watchlists` - Create watchlist
 - `PUT /watchlists/{id}` - Update watchlist
@@ -43,6 +47,7 @@ This directory contains modular route handlers for the Bloomberg-style Stock Ter
 - `GET /performance` - Portfolio performance
 
 ### Research Routes (`/api/research`)
+
 - `GET /news` - Financial news with sentiment
 - `GET /earnings` - Earnings calendar
 - `GET /estimates` - Analyst estimates
@@ -52,6 +57,7 @@ This directory contains modular route handlers for the Bloomberg-style Stock Ter
 - `GET /events` - Corporate events
 
 ### Trading Routes (`/api/trading`)
+
 - `GET /orderbook/{symbol}` - Order book data
 - `GET /trades/{symbol}` - Recent trades
 - `GET /options/{symbol}` - Options chain
@@ -59,6 +65,7 @@ This directory contains modular route handlers for the Bloomberg-style Stock Ter
 - `GET /forex` - Forex rates
 
 ### Screening Routes (`/api/screening`)
+
 - `GET /screens` - Available screens
 - `POST /screens` - Create custom screen
 - `POST /screens/{id}/run` - Run screen
@@ -66,6 +73,7 @@ This directory contains modular route handlers for the Bloomberg-style Stock Ter
 - `GET /criteria` - Available criteria
 
 ### Backtesting Routes (`/api/backtesting`)
+
 - `GET /strategies` - Available strategies
 - `POST /strategies` - Create strategy
 - `GET /backtests` - Backtest results
@@ -75,12 +83,14 @@ This directory contains modular route handlers for the Bloomberg-style Stock Ter
 - `GET /backtests/{id}/performance` - Performance metrics
 
 ### Risk Management Routes (`/api/risk`)
+
 - `GET /var` - Value at Risk calculations
 - `GET /stress-test` - Stress testing
 - `GET /correlation` - Risk correlation
 - `GET /exposure` - Risk exposure analysis
 
 ### Economic Data Routes (`/api/economic`)
+
 - `GET /indicators` - Economic indicators
 - `GET /calendar` - Economic calendar
 - `GET /fed` - Federal Reserve data
@@ -97,6 +107,7 @@ Authorization: Bearer <your-jwt-token>
 ## Rate Limiting
 
 Different rate limits apply to different endpoint categories:
+
 - General endpoints: 1000 requests per 15 minutes
 - Market data: 100 requests per minute
 - Authentication: 5 requests per 15 minutes
@@ -104,6 +115,7 @@ Different rate limits apply to different endpoint categories:
 ## WebSocket Endpoints
 
 Real-time data is available via WebSocket connections:
+
 - Market quotes
 - Order book updates
 - Trade executions

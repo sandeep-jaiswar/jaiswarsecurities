@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Stock Screening System Infrastructure'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Stock Screening System Infrastructure"
 
 Parameters:
   Environment:
@@ -7,18 +7,18 @@ Parameters:
     Default: development
     AllowedValues: [development, staging, production]
     Description: Environment name
-  
+
   VpcCidr:
     Type: String
     Default: 10.0.0.0/16
     Description: CIDR block for VPC
-  
+
   DatabaseInstanceClass:
     Type: String
     Default: db.t3.micro
     AllowedValues: [db.t3.micro, db.t3.small, db.t3.medium]
     Description: RDS instance class
-  
+
   DatabaseAllocatedStorage:
     Type: Number
     Default: 20
@@ -55,10 +55,10 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [0, !GetAZs '']
-      CidrBlock: !Sub 
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: !Sub
         - ${VpcCidr.0}.${VpcCidr.1}.1.0/24
-        - VpcCidr: !Split ['.', !Ref VpcCidr]
+        - VpcCidr: !Split [".", !Ref VpcCidr]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -68,10 +68,10 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [1, !GetAZs '']
-      CidrBlock: !Sub 
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Sub
         - ${VpcCidr.0}.${VpcCidr.1}.2.0/24
-        - VpcCidr: !Split ['.', !Ref VpcCidr]
+        - VpcCidr: !Split [".", !Ref VpcCidr]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -81,10 +81,10 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [0, !GetAZs '']
-      CidrBlock: !Sub 
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: !Sub
         - ${VpcCidr.0}.${VpcCidr.1}.10.0/24
-        - VpcCidr: !Split ['.', !Ref VpcCidr]
+        - VpcCidr: !Split [".", !Ref VpcCidr]
       Tags:
         - Key: Name
           Value: !Sub ${Environment}-private-subnet-1
@@ -93,10 +93,10 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [1, !GetAZs '']
-      CidrBlock: !Sub 
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Sub
         - ${VpcCidr.0}.${VpcCidr.1}.11.0/24
-        - VpcCidr: !Split ['.', !Ref VpcCidr]
+        - VpcCidr: !Split [".", !Ref VpcCidr]
       Tags:
         - Key: Name
           Value: !Sub ${Environment}-private-subnet-2
@@ -201,7 +201,7 @@ Resources:
       DBInstanceIdentifier: !Sub ${Environment}-stock-db
       DBInstanceClass: !Ref DatabaseInstanceClass
       Engine: postgres
-      EngineVersion: '15.4'
+      EngineVersion: "15.4"
       AllocatedStorage: !Ref DatabaseAllocatedStorage
       StorageType: gp2
       StorageEncrypted: true
@@ -317,7 +317,7 @@ Resources:
     Properties:
       RoleName: !Sub ${Environment}-stock-screening-role
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -328,7 +328,7 @@ Resources:
       Policies:
         - PolicyName: StockScreeningPolicy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:

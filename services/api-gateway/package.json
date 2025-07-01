@@ -1,6 +1,6 @@
 {
   "name": "stock-api-gateway",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Bloomberg-style API Gateway with ClickHouse backend",
   "main": "index.js",
   "scripts": {

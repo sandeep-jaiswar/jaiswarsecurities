@@ -1,12 +1,12 @@
-import axios from 'axios'
+import axios from "axios"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000"
 
 export const apiClient = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 })
 
@@ -14,7 +14,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Add auth token if available
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem("auth_token")
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -33,8 +33,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Handle unauthorized access
-      localStorage.removeItem('auth_token')
-      window.location.href = '/login'
+      localStorage.removeItem("auth_token")
+      window.location.href = "/login"
     }
     return Promise.reject(error)
   }
@@ -43,33 +43,33 @@ apiClient.interceptors.response.use(
 // API endpoints
 export const api = {
   // Market data
-  getSymbols: (params?: any) => apiClient.get('/symbols', { params }),
+  getSymbols: (params?: any) => apiClient.get("/symbols", { params }),
   getSymbol: (symbol: string) => apiClient.get(`/symbols/${symbol}`),
   getOHLCV: (symbol: string, params?: any) => apiClient.get(`/symbols/${symbol}/ohlcv`, { params }),
   getIndicators: (symbol: string, params?: any) => apiClient.get(`/symbols/${symbol}/indicators`, { params }),
-  
+
   // Analytics
-  getMarketOverview: () => apiClient.get('/analytics/market-overview'),
-  
+  getMarketOverview: () => apiClient.get("/analytics/market-overview"),
+
   // Screening
-  getScreens: () => apiClient.get('/screens'),
+  getScreens: () => apiClient.get("/screens"),
   runScreen: (screenId: string, params?: any) => apiClient.post(`/screens/${screenId}/run`, params),
-  
+
   // Backtesting
-  getStrategies: () => apiClient.get('/strategies'),
-  getBacktests: (params?: any) => apiClient.get('/backtests', { params }),
+  getStrategies: () => apiClient.get("/strategies"),
+  getBacktests: (params?: any) => apiClient.get("/backtests", { params }),
   getBacktest: (id: string) => apiClient.get(`/backtests/${id}`),
   getBacktestTrades: (id: string) => apiClient.get(`/backtests/${id}/trades`),
   getEquityCurve: (id: string) => apiClient.get(`/backtests/${id}/equity-curve`),
-  
+
   // Watchlists
-  getWatchlists: () => apiClient.get('/watchlists'),
+  getWatchlists: () => apiClient.get("/watchlists"),
   getWatchlistSymbols: (id: string) => apiClient.get(`/watchlists/${id}/symbols`),
-  
+
   // News
-  getNews: (params?: any) => apiClient.get('/news', { params }),
-  
+  getNews: (params?: any) => apiClient.get("/news", { params }),
+
   // Alerts
-  getAlerts: () => apiClient.get('/alerts'),
-  createAlert: (data: any) => apiClient.post('/alerts', data),
+  getAlerts: () => apiClient.get("/alerts"),
+  createAlert: (data: any) => apiClient.post("/alerts", data),
 }

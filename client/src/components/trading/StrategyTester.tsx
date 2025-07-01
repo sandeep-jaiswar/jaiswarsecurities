@@ -1,32 +1,32 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { useQuery } from 'react-query'
-import { apiClient } from '@/lib/api'
+import { useState } from "react"
 
 export function StrategyTester() {
-  const [selectedStrategy, setSelectedStrategy] = useState('Keltner Channel')
+  const [selectedStrategy, setSelectedStrategy] = useState("Keltner Channel")
 
   const strategies = [
-    'Keltner Channel Buy X Up, Sell Y Down',
-    'Moving Average Crossover',
-    'RSI Divergence',
-    'Bollinger Band Squeeze'
+    "Keltner Channel Buy X Up, Sell Y Down",
+    "Moving Average Crossover",
+    "RSI Divergence",
+    "Bollinger Band Squeeze",
   ]
 
   return (
-    <div className="p-4 h-full">
-      <div className="grid grid-cols-2 gap-4 h-full">
+    <div className="h-full p-4">
+      <div className="grid h-full grid-cols-2 gap-4">
         {/* Strategy Selection */}
         <div>
-          <h4 className="text-xs font-bold text-terminal-accent mb-2">Strategy Selection</h4>
-          <select 
+          <h4 className="mb-2 text-xs font-bold text-terminal-accent">Strategy Selection</h4>
+          <select
             value={selectedStrategy}
             onChange={(e) => setSelectedStrategy(e.target.value)}
-            className="w-full bg-terminal-bg border border-terminal-border rounded px-2 py-1 text-xs"
+            className="w-full rounded border border-terminal-border bg-terminal-bg px-2 py-1 text-xs"
           >
             {strategies.map((strategy) => (
-              <option key={strategy} value={strategy}>{strategy}</option>
+              <option key={strategy} value={strategy}>
+                {strategy}
+              </option>
             ))}
           </select>
 
@@ -48,7 +48,7 @@ export function StrategyTester() {
 
         {/* Performance Metrics */}
         <div>
-          <h4 className="text-xs font-bold text-terminal-accent mb-2">Performance</h4>
+          <h4 className="mb-2 text-xs font-bold text-terminal-accent">Performance</h4>
           <div className="space-y-1 text-xs">
             <div className="flex justify-between">
               <span className="text-terminal-muted">Net Profit:</span>
