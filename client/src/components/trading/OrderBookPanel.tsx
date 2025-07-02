@@ -25,8 +25,21 @@ export function OrderBookPanel({ symbol }: OrderBookPanelProps) {
     ],
   }
 
-  const spread = mockOrderBook.asks[0].price - mockOrderBook.bids[0].price
-  const midPrice = (mockOrderBook.asks[0].price + mockOrderBook.bids[0].price) / 2
+  // Add checks for empty arrays
+  if (!mockOrderBook.asks.length || !mockOrderBook.bids.length) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center text-terminal-muted">
+        No order book data available for {symbol}
+      </div>
+    )
+  }
+
+  // Destructure the first elements after the length check
+  const firstAsk = mockOrderBook.asks[0];
+  const firstBid = mockOrderBook.bids[0];
+
+  const spread = firstAsk!.price - firstBid!.price
+  const midPrice = (firstAsk!.price + firstBid!.price) / 2
 
   return (
     <div className="flex h-full flex-col">

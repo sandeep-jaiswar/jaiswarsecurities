@@ -7,19 +7,62 @@ import { api } from "@/lib/api"
 import { useTerminalStore } from "@/store/terminalStore"
 import { formatPercent, formatPrice, getChangeColor } from "@/utils/formatters"
 
+// --- Type Definitions ---
+interface SymbolData {
+  symbol: string
+  name: string
+  price: number
+  change: number
+  changePercent: number
+}
+
+interface Watchlist {
+  id: string
+  name: string
+  symbols: string[]
+}
+
 export function WatchlistPanel() {
-  const { watchlists, setActiveSymbol } = useTerminalStore()
+  const { watchlists, setActiveSymbol } = useTerminalStore() as {
+    watchlists: Watchlist[]
+    setActiveSymbol: (symbol: string) => void
+  }
+
   const [activeWatchlist, setActiveWatchlist] = useState(0)
 
-  const { data: symbolsData, isLoading } = useQuery(
-    ["watchlist-data", watchlists[activeWatchlist]?.symbols],
-    () => {
-      const symbols = watchlists[activeWatchlist]?.symbols || []
-      return Promise.all(symbols.map((symbol) => api.getSymbol(symbol).catch(() => null)))
+  const symbols = watchlists[activeWatchlist]?.symbols || []
+
+  const { data: symbolsData, isLoading } = useQuery<(SymbolData | null)[]>(
+    ["watchlist-data", symbols],
+    async () => {
+      return await Promise.all(
+        symbols.map(async (symbol) => {
+          try {
+            const res = await api.getSymbol(symbol)
+            return {
+              symbol,
+              name: "Company Name",
+              price: 150.25 + Math.random() * 50, // mock price
+              change: (Math.random() - 0.5) * 10,
+              changePercent: 0, // calculated below
+            } as SymbolData
+          } catch {
+            return null
+          }
+        })
+      )
     },
     {
-      enabled: watchlists[activeWatchlist]?.symbols?.length > 0,
+      enabled: symbols.length > 0,
       refetchInterval: 5000,
+      select: (data) =>
+        data.map((d) => {
+          if (!d) return null
+          return {
+            ...d,
+            changePercent: (d.change / d.price) * 100,
+          }
+        }),
     }
   )
 
@@ -59,29 +102,24 @@ export function WatchlistPanel() {
             {symbolsData?.map((data, index) => {
               if (!data) return null
 
-              const symbol = watchlists[activeWatchlist].symbols[index]
-              const price = 150.25 + Math.random() * 50 // Mock data
-              const change = (Math.random() - 0.5) * 10
-              const changePercent = (change / price) * 100
-
               return (
                 <div
-                  key={symbol}
-                  onClick={() => handleSymbolClick(symbol)}
+                  key={data.symbol}
+                  onClick={() => handleSymbolClick(data.symbol)}
                   className="cursor-pointer rounded p-2 text-xs hover:bg-terminal-border"
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="font-medium text-terminal-text">{symbol}</div>
+                      <div className="font-medium text-terminal-text">{data.symbol}</div>
                       <div className="truncate text-xs text-terminal-muted">
-                        // TODO:// Fix type error
-                        {/* {data?.name ?? 'Company Name'} */}
-                        {"Company Name"}
+                        {data.name ?? "Company Name"}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-mono">{formatPrice(price)}</div>
-                      <div className={`text-xs ${getChangeColor(change)}`}>{formatPercent(changePercent)}</div>
+                      <div className="font-mono">{formatPrice(data.price)}</div>
+                      <div className={`text-xs ${getChangeColor(data.change)}`}>
+                        {formatPercent(data.changePercent)}
+                      </div>
                     </div>
                   </div>
                 </div>
