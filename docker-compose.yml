@@ -53,6 +53,9 @@ services:
     restart: unless-stopped
     env_file:
       - ./.env
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
+      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
@@ -74,8 +77,13 @@ services:
     env_file:
       - ./.env
     environment:
-      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
-      - KAFKA_DELETE_TOPIC_ENABLE=true
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
     volumes:
       - kafka_data:/var/lib/kafka/data
     ports:
@@ -110,103 +118,18 @@ services:
       timeout: 10s
       retries: 3
 
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: stock_n8n
-    restart: unless-stopped
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    env_file:
-      - ./.env
-    ports:
-      - "5678:5678"
-    volumes:
-      - n8n_data:/home/node/.n8n
-      - ./n8n/workflows:/home/node/.n8n/workflows
-    networks:
-      - stock_network
-
-  api-gateway:
+  client:
     build:
       context: .
-      dockerfile: ./services/api-gateway/Dockerfile
-    container_name: stock_api_gateway
+      dockerfile: ./client/Dockerfile
+    container_name: stock_client
     restart: unless-stopped
     depends_on:
       clickhouse:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file:
-      - ./.env
-    ports:
-      - "3000:3000"
-    networks:
-      - stock_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  data-ingestion:
-    build:
-      context: .
-      dockerfile: ./services/data-ingestion/Dockerfile
-    container_name: stock_data_ingestion
-    restart: unless-stopped
-    depends_on:
-      clickhouse:
-        condition: service_healthy
       kafka:
-        condition: service_healthy
-    env_file:
-      - ./.env
-    ports:
-      - "3002:3002"
-    networks:
-      - stock_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  backtesting:
-    build:
-      context: .
-      dockerfile: ./services/backtesting/Dockerfile
-    container_name: stock_backtesting
-    restart: unless-stopped
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    env_file:
-      - ./.env
-    ports:
-      - "3003:3003"
-    networks:
-      - stock_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  client:
-    build:
-      context: .
-      dockerfile: ./client/Dockerfile
-      target: prod
-    container_name: stock_client
-    restart: unless-stopped
-    depends_on:
-      api-gateway:
         condition: service_healthy
     env_file:
       - ./.env
@@ -226,7 +149,6 @@ volumes:
   zookeeper_data:
   zookeeper_logs:
   kafka_data:
-  n8n_data:
   localstack_data:
 
 networks:
