@@ -27,11 +27,6 @@
     "moment": "^2.29.4",
     "lodash": "^4.17.21"
   },
-  "devDependencies": {
-    "nodemon": "^3.0.1",
-    "jest": "^29.7.0",
-    "supertest": "^6.3.3"
-  },
   "keywords": [
     "api",
     "gateway",

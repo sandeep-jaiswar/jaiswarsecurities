@@ -1,0 +1,44 @@
+# Git and Node
+.git
+.gitignore
+node_modules
+npm-debug.log*
+yarn-error.log
+
+# IDE and OS files
+.idea
+.vscode
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Build artifacts and caches
+/client/.next
+/client/out
+/build
+/dist
+*.tsbuildinfo
+
+# Env files
+.env
+.env*.local
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose.override.yml
+
+# Log files
+*.log
+logs
+*.log.*
+
+# Local data volumes
+clickhouse_data
+redis_data
+zookeeper_data
+zookeeper_logs
+kafka_data
+n8n_data
+localstack_data

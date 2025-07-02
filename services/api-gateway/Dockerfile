@@ -1,31 +1,25 @@
-FROM node:18-alpine
+# ---- Base ----
+FROM node:18-alpine AS base
+WORKDIR /usr/src/app
 
-# Create app directory
-WORKDIR /app
+COPY package.json package-lock.json lerna.json ./
+RUN npm ci
 
-# Add system dependencies
-RUN apk add --no-cache curl
+COPY . .
 
-# Add a non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+# ---- Development ----
+FROM base AS development
+WORKDIR /usr/src/app
 
-# Install dependencies
-COPY package.json package-lock.json ./
-RUN npm ci --only=production
+CMD ["npm", "run", "dev", "--workspace=api-gateway"]
 
-# Copy app code and give ownership
-COPY --chown=nodejs:nodejs . .
+# ---- Production ----
+FROM base AS production
+WORKDIR /usr/src/app
 
-# Switch user
-USER nodejs
+RUN npm run build --workspace=api-gateway
 
-# Create logs directory
-RUN mkdir -p logs
+# Remove dev dependencies
+RUN npm prune --production
 
-# Expose API port
-EXPOSE 3000
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget --quiet --spider http://localhost:3000/health || exit 1
-
-CMD ["node", "index.js"]
+CMD ["node", "services/api-gateway/index.js"]
