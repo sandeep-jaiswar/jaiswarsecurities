@@ -149,107 +149,12 @@ services:
     networks:
       - stock_network
 
-  api-gateway:
-    build:
-      context: .
-      dockerfile: services/api-gateway/Dockerfile
-    container_name: stock_api_gateway
-    restart: unless-stopped
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      CLICKHOUSE_URL: ${CLICKHOUSE_URL}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB}
-      REDIS_URL: ${REDIS_URL}
-      PORT: ${API_PORT}
-    ports:
-      - "3000:3000"
-    networks:
-      - stock_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  data-ingestion:
-    build:
-      context: .
-      dockerfile: services/data-ingestion/Dockerfile
-    container_name: stock_data_ingestion
-    restart: unless-stopped
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    environment:
-      CLICKHOUSE_URL: ${CLICKHOUSE_URL}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB}
-      KAFKA_BROKERS: ${KAFKA_BROKERS}
-      REDIS_URL: ${REDIS_URL}
-      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY}
-      LOG_LEVEL: ${LOG_LEVEL}
-      PORT: ${DATA_INGESTION_PORT}
-    ports:
-      - "3002:3002"
-    networks:
-      - stock_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  backtesting:
-    build:
-      context: .
-      dockerfile: services/backtesting/Dockerfile
-    container_name: stock_backtesting
-    restart: unless-stopped
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    environment:
-      CLICKHOUSE_URL: ${CLICKHOUSE_URL}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB}
-      KAFKA_BROKERS: ${KAFKA_BROKERS}
-      BACKTEST_START_DATE: ${BACKTEST_START_DATE}
-      BACKTEST_END_DATE: ${BACKTEST_END_DATE}
-      BACKTEST_INITIAL_CAPITAL: ${BACKTEST_INITIAL_CAPITAL}
-      BACKTEST_COMMISSION: ${BACKTEST_COMMISSION}
-      LOG_LEVEL: ${LOG_LEVEL}
-      PORT: ${BACKTESTING_PORT}
-    ports:
-      - "3003:3003"
-    networks:
-      - stock_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   client:
     build:
       context: .
       dockerfile: client/Dockerfile
     container_name: stock_client
     restart: unless-stopped
-    depends_on:
-      api-gateway:
-        condition: service_healthy
     environment:
       NODE_ENV: ${NODE_ENV}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}

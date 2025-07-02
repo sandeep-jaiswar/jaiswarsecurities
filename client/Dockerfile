@@ -46,4 +46,4 @@ EXPOSE 3001
 ENV PORT 3001
 
 # Start the server
-CMD ["node", "server.js"]
+CMD ["npm", "run", "start"]

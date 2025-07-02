@@ -1,18 +1,4 @@
 services:
-  api-gateway:
-    volumes:
-      - ./services/api-gateway:/usr/src/app/services/api-gateway
-      - /usr/src/app/node_modules
-
-  data-ingestion:
-    volumes:
-      - ./services/data-ingestion:/usr/src/app/services/data-ingestion
-      - /usr/src/app/node_modules
-
-  backtesting:
-    volumes:
-      - ./services/backtesting:/usr/src/app/services/backtesting
-      - /usr/src/app/node_modules
 
   client:
     build:
