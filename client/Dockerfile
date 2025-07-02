@@ -2,27 +2,36 @@ FROM node:18-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-FROM base AS deps
+# Copy package.json and lockfile from monorepo root
 COPY package.json package-lock.json ./
-RUN npm ci --only=production
 
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
+
+# Copy the client directory
+COPY client ./
+
+
+# Set environment variables
 ENV NEXT_TELEMETRY_DISABLED 1
+
+# Run the build command inside the client directory
 RUN npm run build
 
-FROM base AS runner
+# Start a new stage for the runner
+FROM node:18-alpine AS runner
 WORKDIR /app
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
+# Copy the necessary files from the builder stage
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 

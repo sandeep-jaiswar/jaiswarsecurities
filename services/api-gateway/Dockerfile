@@ -9,12 +9,14 @@ RUN apk add --no-cache curl
 # Add a non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 
-# Install dependencies
+# Copy package.json and package-lock.json from the root of the monorepo
 COPY package.json package-lock.json ./
-RUN npm ci --only=production
 
-# Copy app code and give ownership
-COPY --chown=nodejs:nodejs . .
+# Install dependencies
+RUN npm ci
+
+# Copy the api-gateway service
+COPY services/api-gateway ./
 
 # Switch user
 USER nodejs
