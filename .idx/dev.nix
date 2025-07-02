@@ -9,8 +9,10 @@
     # pkgs.go
     # pkgs.python311
     # pkgs.python311Packages.pip
-    pkgs.nodejs_20
+    # pkgs.nodejs_20
     # pkgs.nodePackages.nodemon
+    pkgs.docker-compose
+    pkgs.docker
   ];
 
   # Sets environment variables in the workspace

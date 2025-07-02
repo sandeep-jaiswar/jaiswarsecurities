@@ -1,31 +1,25 @@
-FROM node:18-alpine
+# ---- Base ----
+FROM node:18-alpine AS base
+WORKDIR /usr/src/app
 
-WORKDIR /app
+COPY package.json package-lock.json lerna.json ./
+RUN npm ci
 
-# Add system tools
-RUN apk add --no-cache curl
+COPY . .
 
-# Add non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+# ---- Development ----
+FROM base AS development
+WORKDIR /usr/src/app
 
-# Install dependencies
-COPY package.json package-lock.json ./
-RUN npm ci --only=production
+CMD ["npm", "run", "dev", "--workspace=backtesting"]
 
-# Copy application code and set ownership
-COPY --chown=nodejs:nodejs . .
+# ---- Production ----
+FROM base AS production
+WORKDIR /usr/src/app
 
-# Create logs dir (if needed by app)
-RUN mkdir -p logs
+RUN npm run build --workspace=backtesting
 
-# Run as non-root
-USER nodejs
+# Remove dev dependencies
+RUN npm prune --production
 
-# Expose service port
-EXPOSE 3003
-
-# Add healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget --quiet --spider http://localhost:3003/health || exit 1
-
-CMD ["node", "index.js"]
+CMD ["node", "services/backtesting/index.js"]

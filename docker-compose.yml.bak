@@ -4,10 +4,10 @@ services:
     container_name: stock_clickhouse
     restart: unless-stopped
     environment:
-      - CLICKHOUSE_DB=${CLICKHOUSE_DB}
-      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
-      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
-      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./database/clickhouse/init:/docker-entrypoint-initdb.d:ro
@@ -53,11 +53,11 @@ services:
     container_name: stock_zookeeper
     restart: unless-stopped
     environment:
-      - ZOOKEEPER_CLIENT_PORT=${ZOOKEEPER_CLIENT_PORT}
-      - ZOOKEEPER_TICK_TIME=${ZOOKEEPER_TICK_TIME}
-      - ZOOKEEPER_SYNC_LIMIT=2
-      - ZOOKEEPER_INIT_LIMIT=5
-      - ZOOKEEPER_MAX_CLIENT_CNXNS=60
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
+      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_MAX_CLIENT_CNXNS: 60
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
@@ -77,13 +77,13 @@ services:
       zookeeper:
         condition: service_healthy
     environment:
-      - KAFKA_BROKER_ID=1
-      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - KAFKA_AUTO_CREATE_TOPICS_ENABLE="true"
-      - KAFKA_DELETE_TOPIC_ENABLE="true"
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
     volumes:
       - kafka_data:/var/lib/kafka/data
     ports:
@@ -102,13 +102,13 @@ services:
     container_name: stock_localstack
     restart: unless-stopped
     environment:
-      - SERVICES=${LOCALSTACK_SERVICES}
-      - DEBUG=${LOCALSTACK_DEBUG}
-      - DATA_DIR=${LOCALSTACK_DATA_DIR}
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - PERSISTENCE=1
-      - LAMBDA_EXECUTOR=docker
-      - LAMBDA_REMOTE_DOCKER=false
+      SERVICES: ${LOCALSTACK_SERVICES}
+      DEBUG: ${LOCALSTACK_DEBUG}
+      DATA_DIR: ${LOCALSTACK_DATA_DIR}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      PERSISTENCE: 1
+      LAMBDA_EXECUTOR: docker
+      LAMBDA_REMOTE_DOCKER: false
     ports:
       - "4566:4566"
       - "4510-4559:4510-4559"
@@ -134,13 +134,13 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
-      - N8N_HOST=${N8N_HOST}
-      - N8N_PORT=${N8N_PORT}
-      - N8N_PROTOCOL=${N8N_PROTOCOL}
-      - WEBHOOK_URL=http://localhost:5678/
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: ${N8N_PORT}
+      N8N_PROTOCOL: ${N8N_PROTOCOL}
+      WEBHOOK_URL: http://localhost:5678/
     ports:
       - "5678:5678"
     volumes:
@@ -152,19 +152,21 @@ services:
   api-gateway:
     build:
       context: .
-      dockerfile: ./services/api-gateway/Dockerfile
+      dockerfile: services/api-gateway/Dockerfile
     container_name: stock_api_gateway
     restart: unless-stopped
     depends_on:
-      - clickhouse
-      - redis
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      - CLICKHOUSE_URL=${CLICKHOUSE_URL}
-      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
-      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
-      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB}
-      - REDIS_URL=${REDIS_URL}
-      - PORT=${API_PORT}
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB}
+      REDIS_URL: ${REDIS_URL}
+      PORT: ${API_PORT}
     ports:
       - "3000:3000"
     networks:
@@ -178,22 +180,24 @@ services:
   data-ingestion:
     build:
       context: .
-      dockerfile: ./services/data-ingestion/Dockerfile
+      dockerfile: services/data-ingestion/Dockerfile
     container_name: stock_data_ingestion
     restart: unless-stopped
     depends_on:
-      - clickhouse
-      - kafka
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
-      - CLICKHOUSE_URL=${CLICKHOUSE_URL}
-      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
-      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
-      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB}
-      - KAFKA_BROKERS=${KAFKA_BROKERS}
-      - REDIS_URL=${REDIS_URL}
-      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
-      - LOG_LEVEL=${LOG_LEVEL}
-      - PORT=${DATA_INGESTION_PORT}
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB}
+      KAFKA_BROKERS: ${KAFKA_BROKERS}
+      REDIS_URL: ${REDIS_URL}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL}
+      PORT: ${DATA_INGESTION_PORT}
     ports:
       - "3002:3002"
     networks:
@@ -207,24 +211,26 @@ services:
   backtesting:
     build:
       context: .
-      dockerfile: ./services/backtesting/Dockerfile
+      dockerfile: services/backtesting/Dockerfile
     container_name: stock_backtesting
     restart: unless-stopped
     depends_on:
-      - clickhouse
-      - kafka
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
-      - CLICKHOUSE_URL=${CLICKHOUSE_URL}
-      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
-      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
-      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB}
-      - KAFKA_BROKERS=${KAFKA_BROKERS}
-      - BACKTEST_START_DATE=${BACKTEST_START_DATE}
-      - BACKTEST_END_DATE=${BACKTEST_END_DATE}
-      - BACKTEST_INITIAL_CAPITAL=${BACKTEST_INITIAL_CAPITAL}
-      - BACKTEST_COMMISSION=${BACKTEST_COMMISSION}
-      - LOG_LEVEL=${LOG_LEVEL}
-      - PORT=${BACKTESTING_PORT}
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB}
+      KAFKA_BROKERS: ${KAFKA_BROKERS}
+      BACKTEST_START_DATE: ${BACKTEST_START_DATE}
+      BACKTEST_END_DATE: ${BACKTEST_END_DATE}
+      BACKTEST_INITIAL_CAPITAL: ${BACKTEST_INITIAL_CAPITAL}
+      BACKTEST_COMMISSION: ${BACKTEST_COMMISSION}
+      LOG_LEVEL: ${LOG_LEVEL}
+      PORT: ${BACKTESTING_PORT}
     ports:
       - "3003:3003"
     networks:
@@ -238,15 +244,15 @@ services:
   client:
     build:
       context: .
-      dockerfile: ./client/Dockerfile
-      target: prod
+      dockerfile: client/Dockerfile
     container_name: stock_client
     restart: unless-stopped
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
     environment:
-      - NODE_ENV=${NODE_ENV}
-      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+      NODE_ENV: ${NODE_ENV}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
     ports:
       - "3001:3001"
     networks:

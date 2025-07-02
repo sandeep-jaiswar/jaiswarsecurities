@@ -1,33 +1,25 @@
-FROM node:18-alpine
+# ---- Base ----
+FROM node:18-alpine AS base
+WORKDIR /usr/src/app
 
-# Create app directory
-WORKDIR /app
-
-# Add system dependencies
-RUN apk add --no-cache curl
-
-# Add a non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-
-# Copy package.json and package-lock.json from the root of the monorepo
-COPY package.json package-lock.json ./
-
-# Install dependencies
+COPY package.json package-lock.json lerna.json ./
 RUN npm ci
 
-# Copy the api-gateway service
-COPY services/api-gateway ./
+COPY . .
 
-# Switch user
-USER nodejs
+# ---- Development ----
+FROM base AS development
+WORKDIR /usr/src/app
 
-# Create logs directory
-RUN mkdir -p logs
+CMD ["npm", "run", "dev", "--workspace=api-gateway"]
 
-# Expose API port
-EXPOSE 3000
+# ---- Production ----
+FROM base AS production
+WORKDIR /usr/src/app
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget --quiet --spider http://localhost:3000/health || exit 1
+RUN npm run build --workspace=api-gateway
 
-CMD ["node", "index.js"]
+# Remove dev dependencies
+RUN npm prune --production
+
+CMD ["node", "services/api-gateway/index.js"]
