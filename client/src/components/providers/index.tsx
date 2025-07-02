@@ -30,9 +30,7 @@ export function Providers({ children }: PropsWithChildren) {
   return (
     <>
       <QueryClientProvider client={queryClient}>
-        <>
-        {children}
-        </>
+        <>{children}</>
         {process.env.NODE_ENV === "development" && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>
     </>

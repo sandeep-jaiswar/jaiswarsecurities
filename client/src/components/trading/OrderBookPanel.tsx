@@ -35,8 +35,8 @@ export function OrderBookPanel({ symbol }: OrderBookPanelProps) {
   }
 
   // Destructure the first elements after the length check
-  const firstAsk = mockOrderBook.asks[0];
-  const firstBid = mockOrderBook.bids[0];
+  const firstAsk = mockOrderBook.asks[0]
+  const firstBid = mockOrderBook.bids[0]
 
   const spread = firstAsk!.price - firstBid!.price
   const midPrice = (firstAsk!.price + firstBid!.price) / 2

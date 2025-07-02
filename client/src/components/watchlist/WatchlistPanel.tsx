@@ -111,9 +111,7 @@ export function WatchlistPanel() {
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="font-medium text-terminal-text">{data.symbol}</div>
-                      <div className="truncate text-xs text-terminal-muted">
-                        {data.name ?? "Company Name"}
-                      </div>
+                      <div className="truncate text-xs text-terminal-muted">{data.name ?? "Company Name"}</div>
                     </div>
                     <div className="text-right">
                       <div className="font-mono">{formatPrice(data.price)}</div>
