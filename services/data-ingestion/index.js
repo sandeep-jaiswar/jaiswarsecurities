@@ -5,12 +5,10 @@ const { Kafka } = require("kafkajs")
 const cron = require("node-cron")
 const Redis = require("redis")
 const winston = require("winston")
-const path = require("path")
-require("dotenv").config({ path: path.resolve(__dirname, "../../../.env") })
 
 // Initialize logger
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || "info",
+  level: process.env.LOG_LEVEL,
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
@@ -26,9 +24,9 @@ const logger = winston.createLogger({
 // Initialize ClickHouse connection
 const clickhouse = createClient({
   url: process.env.CLICKHOUSE_URL,
-  username: process.env.CLICKHOUSE_USER || "stockuser",
-  password: process.env.CLICKHOUSE_PASSWORD || "stockpass123",
-  database: process.env.CLICKHOUSE_DATABASE || "stockdb",
+  username: process.env.CLICKHOUSE_USER,
+  password: process.env.CLICKHOUSE_PASSWORD,
+  database: process.env.CLICKHOUSE_DATABASE,
   clickhouse_settings: {
     async_insert: 1,
     wait_for_async_insert: 1,
