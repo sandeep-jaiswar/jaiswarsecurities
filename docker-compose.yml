@@ -82,8 +82,8 @@ services:
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - KAFKA_AUTO_CREATE_TOPICS_ENABLE="true"
-      - KAFKA_DELETE_TOPIC_ENABLE="true"
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_DELETE_TOPIC_ENABLE=true
     volumes:
       - kafka_data:/var/lib/kafka/data
     ports:
@@ -156,8 +156,10 @@ services:
     container_name: stock_api_gateway
     restart: unless-stopped
     depends_on:
-      - clickhouse
-      - redis
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - CLICKHOUSE_URL=${CLICKHOUSE_URL}
       - CLICKHOUSE_USER=${CLICKHOUSE_USER}
@@ -182,8 +184,10 @@ services:
     container_name: stock_data_ingestion
     restart: unless-stopped
     depends_on:
-      - clickhouse
-      - kafka
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       - CLICKHOUSE_URL=${CLICKHOUSE_URL}
       - CLICKHOUSE_USER=${CLICKHOUSE_USER}
@@ -211,8 +215,10 @@ services:
     container_name: stock_backtesting
     restart: unless-stopped
     depends_on:
-      - clickhouse
-      - kafka
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       - CLICKHOUSE_URL=${CLICKHOUSE_URL}
       - CLICKHOUSE_USER=${CLICKHOUSE_USER}
@@ -243,7 +249,8 @@ services:
     container_name: stock_client
     restart: unless-stopped
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
     environment:
       - NODE_ENV=${NODE_ENV}
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}

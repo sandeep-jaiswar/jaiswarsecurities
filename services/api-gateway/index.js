@@ -12,7 +12,8 @@ const swaggerUi = require("swagger-ui-express")
 const winston = require("winston")
 const WebSocket = require("ws")
 const http = require("http")
-require("dotenv").config()
+const path = require("path")
+require("dotenv").config({ path: path.resolve(__dirname, "../../../.env") })
 
 // Import route modules
 const analyticsRoutes = require("./routes/analytics")
@@ -41,7 +42,7 @@ const logger = winston.createLogger({
 
 // Initialize ClickHouse connection
 const clickhouse = createClient({
-  url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
+  url: process.env.CLICKHOUSE_URL,
   username: process.env.CLICKHOUSE_USER || "stockuser",
   password: process.env.CLICKHOUSE_PASSWORD || "stockpass123",
   database: process.env.CLICKHOUSE_DATABASE || "stockdb",

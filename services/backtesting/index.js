@@ -3,7 +3,8 @@ const express = require("express")
 const { Kafka } = require("kafkajs")
 // const { SMA, EMA, RSI, MACD, BollingerBands } = require("technicalindicators")
 const winston = require("winston")
-require("dotenv").config()
+const path = require("path")
+require("dotenv").config({ path: path.resolve(__dirname, "../../../.env") })
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -22,7 +23,7 @@ const logger = winston.createLogger({
 
 // Initialize ClickHouse connection
 const clickhouse = createClient({
-  url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
+  url: process.env.CLICKHOUSE_URL,
   username: process.env.CLICKHOUSE_USER || "stockuser",
   password: process.env.CLICKHOUSE_PASSWORD || "stockpass123",
   database: process.env.CLICKHOUSE_DATABASE || "stockdb",
