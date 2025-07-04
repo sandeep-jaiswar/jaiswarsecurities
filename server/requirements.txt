@@ -1,0 +1,18 @@
+# Web framework
+fastapi==0.111.0
+
+# ASGI server
+uvicorn[standard]==0.29.0
+
+# ClickHouse Python client
+clickhouse-connect==0.7.9
+
+# Yahoo Finance data
+yfinance==0.2.40
+
+# Technical analysis indicators
+pandas_ta==0.3.14b0
+
+# Dependencies for pandas_ta
+pandas==1.5.3
+numpy==1.24.4
