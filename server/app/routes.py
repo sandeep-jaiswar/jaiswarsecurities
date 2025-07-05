@@ -9,6 +9,9 @@ from app import db
 
 router = APIRouter()
 
+@router.post("/load/sector")
+def load_sectors():
+    return {"status": "success", "action": "sectors loaded"}
 
 @router.post("/load/security")
 def load_security(symbol: str = Query(..., description="Stock ticker like INFY.NS")):
@@ -108,54 +111,91 @@ def load_ohlcv(symbol: str = Query(...),
 
 @router.post("/load/technical-indicators")
 def load_technical_indicators(symbol: str = Query(...)):
+    # Step 1: Get security ID
     security_id = db.get_security_id_by_symbol(symbol)
     if not security_id:
         return {"error": "Security not found. Please load security first."}
+
     print(f"Loading technical indicators for {symbol} with security ID {security_id}")
-    df = yf.Ticker(symbol).history(period="1y", interval="1d")
-    if df.empty:
-        return {"error": "No data found"}
 
-    df.ta.sma(length=20, append=True)
-    df.ta.sma(length=50, append=True)
-    df.ta.sma(length=200, append=True)
-    df.ta.ema(length=12, append=True)
-    df.ta.ema(length=26, append=True)
-    df.ta.rsi(length=14, append=True)
-    df.ta.macd(append=True)
-    df.ta.bbands(append=True)
-    df.ta.stoch(append=True)
-    df.ta.atr(length=14, append=True)
-    df.ta.adx(length=14, append=True)
+    # Step 2: Get OHLCV data from ClickHouse
+    rows, columns = db.get_ohlcv(security_id=security_id)
+    print(f"Retrieved {len(rows)} rows of OHLCV data for {symbol}")
 
+    if not rows:
+        return {"error": "No OHLCV data found"}
+
+    if len(rows[0]) != len(columns):
+        print(f"[ERROR] Column mismatch: got {len(rows[0])} values, expected {len(columns)} columns")
+        print(f"Sample row: {rows[0]}")
+        return {"error": "Mismatch between columns and row values"}
+
+    # Step 3: Convert to DataFrame
+    try:
+        df = pd.DataFrame(rows, columns=columns)
+        df["trade_date"] = pd.to_datetime(df["trade_date"])
+        df.set_index("trade_date", inplace=True)
+    except Exception as e:
+        print(f"[ERROR] DataFrame conversion failed: {e}")
+        return {"error": "Failed to prepare OHLCV data"}
+
+    # Step 4: Calculate indicators
+    try:
+        df.ta.sma(length=20, append=True)
+        df.ta.sma(length=50, append=True)
+        df.ta.sma(length=200, append=True)
+        df.ta.ema(length=12, append=True)
+        df.ta.ema(length=26, append=True)
+        df.ta.rsi(length=14, append=True)
+        df.ta.macd(append=True)
+        df.ta.bbands(append=True)
+        df.ta.stoch(append=True)
+        df.ta.atr(length=14, append=True)
+        df.ta.adx(length=14, append=True)
+    except Exception as e:
+        print(f"[ERROR] Technical indicators calculation failed: {e}")
+        return {"error": "Failed to calculate indicators"}
+    
+    print(f"Calculated indicators for {symbol}: {df.columns.tolist()}")
+
+    # Step 5: Insert indicators into DB
     count = 0
     for date, row in df.iterrows():
         if pd.isna(row.get("SMA_20")):
             continue
-        db.insert_technical_indicators({
-            "security_id": security_id,
-            "trade_date": date.date(),
-            "sma_20": row["SMA_20"],
-            "sma_50": row["SMA_50"],
-            "sma_200": row["SMA_200"],
-            "ema_12": row["EMA_12"],
-            "ema_26": row["EMA_26"],
-            "rsi_14": row["RSI_14"],
-            "macd": row["MACD_12_26_9"],
-            "macd_signal": row["MACDs_12_26_9"],
-            "macd_histogram": row["MACDh_12_26_9"],
-            "bb_upper": row["BBU_20_2.0"],
-            "bb_middle": row["BBM_20_2.0"],
-            "bb_lower": row["BBL_20_2.0"],
-            "stochastic_k": row.get("STOCHk_14_3_3"),
-            "stochastic_d": row.get("STOCHd_14_3_3"),
-            "atr_14": row.get("ATR_14", None),
-            "adx_14": row.get("ADX_14", None)
-        })
-        count += 1
+        try:
+            row = row.to_dict()
+            db.insert_technical_indicators({
+                "security_id": security_id,
+                "trade_date": date.date(),
+                "sma_20": row["SMA_20"],
+                "sma_50": row["SMA_50"],
+                "sma_200": row["SMA_200"],
+                "ema_12": row["EMA_12"],
+                "ema_26": row["EMA_26"],
+                "rsi_14": row["RSI_14"],
+                "macd": row["MACD_12_26_9"],
+                "macd_signal": row["MACDs_12_26_9"],
+                "macd_histogram": row["MACDh_12_26_9"],
+                "bb_upper": row["BBU_20_2.0"],
+                "bb_middle": row["BBM_20_2.0"],
+                "bb_lower": row["BBL_20_2.0"],
+                "stochastic_k": row.get("STOCHk_14_3_3"),
+                "stochastic_d": row.get("STOCHd_14_3_3"),
+                "atr_14": row.get("ATR_14"),
+                "adx_14": row.get("ADX_14")
+            })
+            count += 1
+        except Exception as e:
+            print(f"[WARN] Insert failed for {date}: {e}")
+            continue
 
-    return {"status": "success", "action": "technical indicators loaded", "symbol": symbol, "count": count}
-
+    return {
+        "status": "success",
+        "action": "technical indicators loaded",
+        "symbol": symbol,
+        "count": count
+    }
 
 @router.post("/load/trading-statistics")
 def load_trading_statistics(symbol: str = Query(...)):

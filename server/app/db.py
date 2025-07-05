@@ -1,6 +1,8 @@
 from clickhouse_connect import get_client
 import uuid
-from datetime import datetime
+import math
+from datetime import datetime, timedelta
+import traceback
 
 client = get_client(host='localhost', port=8123, username='default', password='')
 
@@ -203,6 +205,20 @@ def create_tables():
 def now():
     return datetime.utcnow().isoformat()
 
+def safe(v):
+    # Convert NaN to None for ClickHouse compatibility
+    return None if v is None or (isinstance(v, float) and math.isnan(v)) else v
+
+def safe_execute(fn):
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            print(f"\n❌ Error in {fn.__name__}: {e}")
+            traceback.print_exc()
+            return None if 'get_' in fn.__name__ else None
+    return wrapper
+
 # ========== INSERT METHODS ==========
 
 def insert_sector(id, name, code):
@@ -250,6 +266,7 @@ def insert_security(data):
     ]
     client.insert("securities", [row], column_names=columns)
 
+@safe_execute
 def insert_ohlcv(data):
     now = datetime.utcnow()
     row = [
@@ -262,20 +279,35 @@ def insert_ohlcv(data):
         "adjusted_close", "volume", "dividend", "split_factor", "currency", "created_at", "updated_at"
     ])
 
+@safe_execute
 def insert_technical_indicators(data):
     now = datetime.utcnow()
+    print([
+            data["security_id"], data["trade_date"],
+            safe(data["sma_20"]), safe(data["sma_50"]), safe(data["sma_200"]),
+            safe(data["ema_12"]), safe(data["ema_26"]), safe(data["rsi_14"]),
+            safe(data["macd"]), safe(data["macd_signal"]), safe(data["macd_histogram"]),
+            safe(data["bb_upper"]), safe(data["bb_middle"]), safe(data["bb_lower"]),
+            safe(data.get("stochastic_k")), safe(data.get("stochastic_d")),
+            safe(data.get("atr_14")), safe(data.get("adx_14")), now, now
+        ])
     row = [
-        data["security_id"], data["trade_date"], data["sma_20"], data["sma_50"], data["sma_200"],
-        data["ema_12"], data["ema_26"], data["rsi_14"], data["macd"], data["macd_signal"], data["macd_histogram"],
-        data["bb_upper"], data["bb_middle"], data["bb_lower"], data.get("stochastic_k"), data.get("stochastic_d"),
-        data.get("atr_14"), data.get("adx_14"), now, now
-    ]
+            data["security_id"], data["trade_date"],
+            safe(data["sma_20"]), safe(data["sma_50"]), safe(data["sma_200"]),
+            safe(data["ema_12"]), safe(data["ema_26"]), safe(data["rsi_14"]),
+            safe(data["macd"]), safe(data["macd_signal"]), safe(data["macd_histogram"]),
+            safe(data["bb_upper"]), safe(data["bb_middle"]), safe(data["bb_lower"]),
+            safe(data.get("stochastic_k")), safe(data.get("stochastic_d")),
+            safe(data.get("atr_14")), safe(data.get("adx_14")), now, now
+        ]
+
     client.insert("technical_indicators", [row], column_names=[
         "security_id", "trade_date", "sma_20", "sma_50", "sma_200", "ema_12", "ema_26", "rsi_14",
         "macd", "macd_signal", "macd_histogram", "bb_upper", "bb_middle", "bb_lower",
         "stochastic_k", "stochastic_d", "atr_14", "adx_14", "created_at", "updated_at"
     ])
 
+@safe_execute
 def insert_trading_statistics(data):
     now = datetime.utcnow()
     row = [
@@ -289,6 +321,7 @@ def insert_trading_statistics(data):
         "created_at", "updated_at"
     ])
 
+@safe_execute
 def insert_financial_period(data):
     now = datetime.utcnow()
     row = [
@@ -334,13 +367,22 @@ def get_companies(limit=100):
 def get_securities(limit=100):
     return client.query(f"SELECT * FROM securities ORDER BY listing_date DESC LIMIT {limit}").result_rows
 
-def get_ohlcv(security_id, start_date, end_date):
-    return client.query(f"""
+def get_ohlcv(security_id, start_date=None, end_date=None):
+    if start_date is None:
+        start_date = datetime.today().date()
+    if end_date is None:
+        end_date = (datetime.today() - timedelta(days=365)).date()
+
+    result = client.query(f"""
         SELECT * FROM ohlcv_daily
         WHERE security_id = '{security_id}'
-        AND trade_date BETWEEN '{start_date}' AND '{end_date}'
+        AND trade_date BETWEEN '{end_date}' AND '{start_date}'
         ORDER BY trade_date
-    """).result_rows
+    """)
+
+    rows = result.result_rows
+    columns = result.column_names
+    return rows, columns
 
 def get_technical_indicators(security_id, start_date, end_date):
     return client.query(f"""
