@@ -1,44 +1,26 @@
-# Git and Node
+# Git
 .git
 .gitignore
+
+# Node
 node_modules
-npm-debug.log*
+client/node_modules
+npm-debug.log
 yarn-error.log
 
-# IDE and OS files
-.idea
+# Docker
+.dockerignore
+docker-compose.yml
+docker-compose.dev.yml
+docker-compose.prod.yml
+
+# Editor
 .vscode
-*.swp
-*~
+.idea
+
+# OS
 .DS_Store
 Thumbs.db
 
-# Build artifacts and caches
-/client/.next
-/client/out
-/build
-/dist
-*.tsbuildinfo
-
-# Env files
-.env
-.env*.local
-
-# Docker
-Dockerfile
-docker-compose.yml
-docker-compose.override.yml
-
-# Log files
-*.log
-logs
-*.log.*
-
-# Local data volumes
-clickhouse_data
-redis_data
-zookeeper_data
-zookeeper_logs
-kafka_data
-n8n_data
-localstack_data
+# Readme files
+*.md
