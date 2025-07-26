@@ -1,24 +1,17 @@
 "use client"
 
-import { useRef } from "react"
-import { useQuery } from "react-query"
-import { apiClient } from "@/lib/api"
+import { useRef } from "react";
+import { useTradingChartData } from "@/hooks/useTradingChartData"; // Import the custom hook
 
 interface TradingChartProps {
-  symbol: string
-  timeframe: string
+  symbol: string;
+  timeframe: string;
 }
 
 export function TradingChart({ symbol, timeframe }: TradingChartProps) {
-  const chartRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<HTMLDivElement>(null);
 
-  const { isLoading } = useQuery(
-    ["trading-chart", symbol, timeframe],
-    () => apiClient.get(`/api/trading/chart/${symbol}?timeframe=${timeframe}`),
-    {
-      refetchInterval: 5000,
-    }
-  )
+  const { tradingChartData, isLoading } = useTradingChartData(symbol, timeframe);
 
   return (
     <div className="h-96 border border-terminal-border bg-terminal-panel">
@@ -73,5 +66,5 @@ export function TradingChart({ symbol, timeframe }: TradingChartProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

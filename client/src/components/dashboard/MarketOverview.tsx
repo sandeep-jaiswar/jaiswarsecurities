@@ -1,34 +1,16 @@
 "use client"
 
-import { useQuery } from "react-query"
-import { apiClient } from "@/lib/api"
-
-// interface MarketData {
-//   symbol: string
-//   price: number
-//   change: number
-//   changePercent: number
-//   volume: number
-// }
+import { useMarketOverviewData } from "@/hooks/useMarketOverviewData"; // Import the custom hook
 
 export function MarketOverview() {
-  const { isLoading } = useQuery("market-overview", () => apiClient.get("/analytics/market-overview"), {
-    refetchInterval: 5000, // Refresh every 5 seconds
-  })
-
-  const majorIndices = [
-    { symbol: "SPY", name: "S&P 500" },
-    { symbol: "QQQ", name: "NASDAQ" },
-    { symbol: "DIA", name: "DOW" },
-    { symbol: "IWM", name: "Russell 2000" },
-  ]
+  const { marketOverviewData, majorIndices, isLoading } = useMarketOverviewData();
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="loading-spinner"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -81,5 +63,5 @@ export function MarketOverview() {
         </div>
       </div>
     </div>
-  )
+  );
 }

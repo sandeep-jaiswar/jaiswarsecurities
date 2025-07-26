@@ -1,0 +1,8 @@
+services:
+  client:
+    build:
+      context: .
+      dockerfile: ./client/Dockerfile
+      target: prod
+    container_name: stock_client_prod
+    restart: always

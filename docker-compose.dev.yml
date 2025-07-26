@@ -1,0 +1,13 @@
+services:
+  client:
+    build:
+      context: .
+      dockerfile: ./client/Dockerfile
+      target: dev
+    container_name: stock_client_dev
+    command: npm run dev
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"

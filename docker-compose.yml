@@ -1,8 +1,6 @@
 services:
   clickhouse:
     image: clickhouse/clickhouse-server:23.8-alpine
-    container_name: stock_clickhouse
-    restart: unless-stopped
     env_file:
       - ./.env
     volumes:
@@ -26,8 +24,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: stock_redis
-    restart: unless-stopped
     env_file:
       - ./.env
     volumes:
@@ -49,8 +45,6 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
-    container_name: stock_zookeeper
-    restart: unless-stopped
     env_file:
       - ./.env
     volumes:
@@ -66,8 +60,6 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
-    container_name: stock_kafka
-    restart: unless-stopped
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -91,8 +83,6 @@ services:
 
   localstack:
     image: localstack/localstack:latest
-    container_name: stock_localstack
-    restart: unless-stopped
     env_file:
       - ./.env
     ports:
@@ -112,8 +102,6 @@ services:
 
   n8n:
     image: n8nio/n8n:latest
-    container_name: stock_n8n
-    restart: unless-stopped
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -128,25 +116,6 @@ services:
       - ./n8n/workflows:/home/node/.n8n/workflows
     networks:
       - stock_network
-
-  client:
-    build:
-      context: .
-      dockerfile: ./client/Dockerfile
-      target: prod
-    container_name: stock_client
-    restart: unless-stopped
-    env_file:
-      - ./.env
-    ports:
-      - "3001:3001"
-    networks:
-      - stock_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   clickhouse_data:

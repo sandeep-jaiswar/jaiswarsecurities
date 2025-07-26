@@ -1,9 +1,8 @@
 import { createClient } from "@clickhouse/client";
-import axios from "axios";
 import { Kafka } from "kafkajs";
-import Redis from "redis";
 import winston from "winston";
 import { NextResponse } from "next/server";
+import { fetchOHLCVData } from "./external-data"; // Import from the new file
 
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL,
@@ -36,18 +35,61 @@ const kafka = new Kafka({
 });
 
 const producer = kafka.producer();
-const redis = Redis.createClient({
-  url: process.env.REDIS_URL,
-});
 
-redis.on("error", (err) => {
-    logger.error("Redis connection error:", err)
-});
+// Encapsulate ClickHouse insertion for securities
+async function insertSecuritiesToDb(values: any[]) {
+    await clickhouse.insert({
+        table: "securities",
+        values: values,
+    });
+}
 
-async function connectRedis() {
-    if (!redis.isOpen) {
-        await redis.connect();
-    }
+// Encapsulate Kafka publishing for symbols ingested event
+async function publishSymbolsIngestedEvent(symbolsCount: number) {
+    await producer.connect();
+    await producer.send({
+        topic: "symbols-ingested",
+        messages: [
+            {
+                key: "symbols",
+                value: JSON.stringify({
+                    count: symbolsCount,
+                    timestamp: new Date(),
+                }),
+            },
+        ],
+    });
+    await producer.disconnect();
+}
+
+// Encapsulate ClickHouse insertion for OHLCV data
+async function insertOHLCVToDb(values: any[]) {
+    await clickhouse.insert({
+        table: "ohlcv_daily",
+        values: values,
+    });
+}
+
+// Encapsulate Kafka publishing for OHLCV ingested event
+async function publishOHLCVIngestedEvent(symbol: string, securityId: any, recordCount: number, startDate: string, endDate: string) {
+    await producer.connect();
+    await producer.send({
+        topic: "ohlcv-ingested",
+        messages: [
+            {
+                key: symbol,
+                value: JSON.stringify({
+                    symbol,
+                    securityId,
+                    recordCount,
+                    startDate,
+                    endDate,
+                    timestamp: new Date(),
+                }),
+            },
+        ],
+    });
+    await producer.disconnect();
 }
 
 export async function ingestSymbols(symbols: any[]) {
@@ -60,33 +102,16 @@ export async function ingestSymbols(symbols: any[]) {
             is_active: 1,
         }));
 
-        await clickhouse.insert({
-            table: "securities",
-            values: values,
-        });
+        await insertSecuritiesToDb(values);
 
         logger.info(`Ingested ${symbols.length} symbols`);
 
-        await producer.connect();
-        await producer.send({
-            topic: "symbols-ingested",
-            messages: [
-                {
-                    key: "symbols",
-                    value: JSON.stringify({
-                        count: symbols.length,
-                        timestamp: new Date(),
-                    }),
-                },
-            ],
-        });
+        await publishSymbolsIngestedEvent(symbols.length);
 
         return NextResponse.json({ message: "Symbols ingestion started", count: symbols.length });
     } catch (error) {
         logger.error("Error in ingestSymbols:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-    } finally {
-        await producer.disconnect();
     }
 }
 
@@ -117,30 +142,11 @@ export async function ingestOHLCV(symbol: string, startDate: string, endDate: st
             volume: record.volume,
         }));
 
-        await clickhouse.insert({
-            table: "ohlcv_daily",
-            values: values,
-        });
+        await insertOHLCVToDb(values);
 
         logger.info(`Ingested ${data.length} OHLCV records for ${symbol}`);
         
-        await producer.connect();
-        await producer.send({
-            topic: "ohlcv-ingested",
-            messages: [
-                {
-                    key: symbol,
-                    value: JSON.stringify({
-                        symbol,
-                        securityId,
-                        recordCount: data.length,
-                        startDate,
-                        endDate,
-                        timestamp: new Date(),
-                    }),
-                },
-            ],
-        });
+        await publishOHLCVIngestedEvent(symbol, securityId, data.length, startDate, endDate);
 
         return NextResponse.json({
             message: "OHLCV ingestion started",
@@ -151,55 +157,5 @@ export async function ingestOHLCV(symbol: string, startDate: string, endDate: st
     } catch (error) {
         logger.error(`Error ingesting OHLCV for ${symbol}:`, error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-    } finally {
-        await producer.disconnect();
-    }
-}
-
-async function fetchOHLCVData(symbol: string, startDate: string, endDate: string) {
-    await connectRedis();
-    const cacheKey = `ohlcv:${symbol}:${startDate}:${endDate}`;
-    const cachedData = await redis.get(cacheKey);
-
-    if (cachedData) {
-        logger.info(`Using cached data for ${symbol}`);
-        return JSON.parse(cachedData);
-    }
-
-    try {
-        const response = await axios.get("https://www.alphavantage.co/query", {
-            params: {
-                function: "TIME_SERIES_DAILY_ADJUSTED",
-                symbol: symbol,
-                apikey: process.env.ALPHA_VANTAGE_API_KEY,
-                outputsize: "full",
-            },
-            timeout: 30000,
-        });
-
-        const timeSeries = response.data["Time Series (Daily)"];
-        if (!timeSeries) {
-            throw new Error(`No data received for ${symbol}`);
-        }
-
-        const data = Object.entries(timeSeries)
-            .filter(([date]) => date >= startDate && date <= endDate)
-            .map(([date, values]: [string, any]) => ({
-                date,
-                open: parseFloat(values["1. open"]),
-                high: parseFloat(values["2. high"]),
-                low: parseFloat(values["3. low"]),
-                close: parseFloat(values["4. close"]),
-                adjusted_close: parseFloat(values["5. adjusted close"]),
-                volume: parseInt(values["6. volume"]),
-            }))
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        await redis.setEx(cacheKey, 3600, JSON.stringify(data));
-
-        return data;
-    } catch (error) {
-        logger.error(`Error fetching data for ${symbol}:`, error);
-        throw error;
     }
 }

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Initialize AWS resources in LocalStack
-echo "Initializing AWS resources in LocalStack..."
+# Initialize AWS resources in LocalStack using CloudFormation
+echo "Initializing AWS resources in LocalStack using CloudFormation..."
 
 # Set AWS CLI to use LocalStack
 export AWS_ACCESS_KEY_ID=test
@@ -18,26 +18,6 @@ done
 
 echo "LocalStack is ready!"
 
-# Create S3 buckets
-echo "Creating S3 buckets..."
-aws --endpoint-url=http://localhost:4566 s3 mb s3://stock-data-bucket
-aws --endpoint-url=http://localhost:4566 s3 mb s3://stock-backups-bucket
-
-# Create SQS queues
-echo "Creating SQS queues..."
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name data-ingestion-queue
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name data-ingestion-dlq
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name backtesting-queue
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name backtesting-dlq
-
-# Create SNS topics
-echo "Creating SNS topics..."
-aws --endpoint-url=http://localhost:4566 sns create-topic --name stock-alerts
-
-# Create CloudWatch log groups
-echo "Creating CloudWatch log groups..."
-aws --endpoint-url=http://localhost:4566 logs create-log-group --log-group-name /aws/application/stock-screening
-
 # Deploy CloudFormation stack
 echo "Deploying CloudFormation stack..."
 aws --endpoint-url=http://localhost:4566 cloudformation create-stack \
@@ -45,5 +25,16 @@ aws --endpoint-url=http://localhost:4566 cloudformation create-stack \
   --template-body file:///etc/localstack/init/ready.d/../../../cloudformation/infrastructure.yaml \
   --parameters ParameterKey=Environment,ParameterValue=development \
   --capabilities CAPABILITY_NAMED_IAM
+
+# Wait for stack creation
+echo "Waiting for CloudFormation stack creation..."
+aws --endpoint-url=http://localhost:4566 cloudformation wait stack-create-complete \
+  --stack-name stock-screening-infrastructure
+
+# Get stack outputs
+echo "Getting stack outputs..."
+aws --endpoint-url=http://localhost:4566 cloudformation describe-stacks \
+  --stack-name stock-screening-infrastructure \
+  --query 'Stacks[0].Outputs'
 
 echo "AWS resources initialized successfully!"

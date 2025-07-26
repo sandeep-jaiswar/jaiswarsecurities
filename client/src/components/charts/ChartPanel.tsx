@@ -1,32 +1,23 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import { useQuery } from "react-query"
-import { api } from "@/lib/api"
+import { useEffect, useRef } from "react";
+import { useOHLCVData } from "@/hooks/useOHLCVData"; // Import the custom hook
 
 interface ChartPanelProps {
-  symbol: string
+  symbol: string;
 }
 
 export function ChartPanel({ symbol }: ChartPanelProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  const { data: ohlcvData, isLoading } = useQuery(["ohlcv", symbol], () => api.getOHLCV(symbol, { limit: 100 }), {
-    enabled: !!symbol,
-    refetchInterval: 10000,
-  })
-
-  const { data: indicatorsData } = useQuery(["indicators", symbol], () => api.getIndicators(symbol, { limit: 100 }), {
-    enabled: !!symbol,
-    refetchInterval: 10000,
-  })
+  const { ohlcvData, indicatorsData, isLoading } = useOHLCVData(symbol);
 
   useEffect(() => {
-    if (!chartContainerRef.current || !ohlcvData) return
+    if (!chartContainerRef.current || !ohlcvData) return;
 
     // Here you would integrate with a charting library like TradingView, Lightweight Charts, etc.
     // For now, we'll show a placeholder
-  }, [ohlcvData, indicatorsData])
+  }, [ohlcvData, indicatorsData]);
 
   if (isLoading) {
     return (
@@ -36,7 +27,7 @@ export function ChartPanel({ symbol }: ChartPanelProps) {
           <div className="text-terminal-muted">Loading chart data for {symbol}...</div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -105,5 +96,5 @@ export function ChartPanel({ symbol }: ChartPanelProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }
